@@ -1,8 +1,8 @@
-import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateEventDto {
   // Event name
-  @IsEnum(['pageview'])
+  @IsString()
   @IsNotEmpty()
   n!: string;
 
@@ -13,9 +13,11 @@ export class CreateEventDto {
 
   // Domain
   @IsString()
-  d: string;
+  @IsNotEmpty()
+  d!: string;
 
   // Referrer
   @IsString()
-  r: string;
+  @IsOptional()
+  r?: string;
 }

@@ -6,7 +6,7 @@ import { EventsService } from './events.service';
 export class EventsController {
   constructor(private readonly eventsService: EventsService) {}
 
-  @Post()
+  @Post('/')
   create(@Body() createEventDto: CreateEventDto) {
     try {
       return this.eventsService.create(createEventDto);
