@@ -20,7 +20,7 @@ export class AuthService {
       return null;
     }
 
-    if (argon2.verify(user.password, password)) {
+    if (await argon2.verify(user.password, password)) {
       const payload = { sub: user.id, email: user.email };
 
       return {
