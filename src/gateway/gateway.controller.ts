@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { AuthService } from 'src/auth/auth.service';
 import { LoginDto } from 'src/auth/dto/login.dto';
 import { SignupDto } from 'src/auth/dto/signup.dto';
@@ -12,16 +12,19 @@ export class GatewayController {
     private readonly usersService: UsersService,
   ) {}
 
+  @HttpCode(HttpStatus.OK)
   @Post('/auth/login')
   async login(@Body() body: LoginDto) {
     return this.authService.login(body);
   }
 
-  @Post('/auth/signup')
-  async signup(@Body() body: SignupDto) {
-    return this.authService.signup(body);
-  }
+  // @HttpCode(HttpStatus.OK)
+  // @Post('/auth/signup')
+  // async signup(@Body() body: SignupDto) {
+  //   return this.authService.signup(body);
+  // }
 
+  @HttpCode(HttpStatus.OK)
   @Post('/auth/waitlist')
   async waitlist(@Body() body: CreateWaitlistUserDto) {
     return this.usersService.createWaitlist(body);
