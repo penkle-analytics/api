@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { User } from '@prisma/client';
+import { User, WaitlistUser } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { DbService } from 'src/db/db.service';
 
@@ -18,5 +18,9 @@ export class UsersService {
     };
 
     return this.dbService.user.create({ data: user });
+  }
+
+  async createWaitlist(email: string): Promise<WaitlistUser> {
+    return this.dbService.waitlistUser.create({ data: { email } });
   }
 }

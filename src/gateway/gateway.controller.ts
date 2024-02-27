@@ -15,6 +15,6 @@ export class GatewayController {
 
   @Post('/auth/waitlist')
   async waitlist(@Req() req: Request) {
-    return this.usersService.create(req.body['email'], req.body['password']);
+    return this.usersService.createWaitlist(req.body['email']);
   }
 }
