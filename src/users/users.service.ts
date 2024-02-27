@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { User, WaitlistUser } from '@prisma/client';
-import * as argon2 from 'argon2';
+import { Prisma, User, WaitlistUser } from '@prisma/client';
 import { DbService } from 'src/db/db.service';
 
 @Injectable()
@@ -11,16 +10,13 @@ export class UsersService {
     return this.dbService.user.findUnique({ where: { email } });
   }
 
-  async create(email: string, password: string): Promise<User> {
-    const user = {
-      email,
-      password: await argon2.hash(password),
-    };
-
+  async create(user: Prisma.UserCreateInput): Promise<User> {
     return this.dbService.user.create({ data: user });
   }
 
-  async createWaitlist(email: string): Promise<WaitlistUser> {
-    return this.dbService.waitlistUser.create({ data: { email } });
+  async createWaitlist(
+    user: Prisma.WaitlistUserCreateInput,
+  ): Promise<WaitlistUser> {
+    return this.dbService.waitlistUser.create({ data: user });
   }
 }

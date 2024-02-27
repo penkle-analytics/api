@@ -6,9 +6,21 @@ import { EventsModule } from './events/events.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { DbModule } from './db/db.module';
+import { ConfigModule } from '@nestjs/config';
+import { configuration } from './config/config';
 
 @Module({
-  imports: [GatewayModule, EventsModule, AuthModule, UsersModule, DbModule],
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [configuration],
+    }),
+    GatewayModule,
+    EventsModule,
+    AuthModule,
+    UsersModule,
+    DbModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
