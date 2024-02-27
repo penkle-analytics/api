@@ -6,8 +6,8 @@ import { DbService } from 'src/db/db.service';
 export class UsersService {
   constructor(private readonly dbService: DbService) {}
 
-  async findUnique(email: string): Promise<User | undefined> {
-    return this.dbService.user.findUnique({ where: { email } });
+  async findUnique(args: Prisma.UserFindUniqueArgs): Promise<User | undefined> {
+    return this.dbService.user.findUnique(args);
   }
 
   async create(user: Prisma.UserCreateInput): Promise<User> {

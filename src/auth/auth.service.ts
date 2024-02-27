@@ -14,7 +14,9 @@ export class AuthService {
   ) {}
 
   async login({ email, password }: LoginDto): Promise<AuthEntity> {
-    const user = await this.usersService.findUnique(email);
+    const user = await this.usersService.findUnique({
+      where: { email },
+    });
 
     if (!user) {
       return null;
