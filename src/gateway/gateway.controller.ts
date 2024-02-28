@@ -16,12 +16,14 @@ import { CreateWaitlistUserDto } from 'src/users/dto/create-waitlist-user.dto';
 import { UsersService } from 'src/users/users.service';
 import type { Response } from 'express';
 import { AuthGuard } from 'src/auth/auth.guard';
+import { ConfigService } from '@nestjs/config';
 
 @Controller('/')
 export class GatewayController {
   constructor(
     private readonly authService: AuthService,
     private readonly usersService: UsersService,
+    private readonly configService: ConfigService,
   ) {}
 
   @UseGuards(AuthGuard)
@@ -40,15 +42,23 @@ export class GatewayController {
     @Body() body: LoginDto,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const { accessToken } = await this.authService.login(body);
+    const authEntity = await this.authService.login(body);
 
-    response.cookie('token', accessToken, {
+    if (!authEntity) {
+      return null;
+    }
+
+    const isProd = this.configService.get<string>('NODE_ENV') === 'production';
+
+    response.cookie('penkle-token', authEntity.accessToken, {
       httpOnly: true,
-      sameSite: 'strict',
-      secure: true,
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
+      path: '/',
+      expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7), // 7 days
     });
 
-    return { accessToken };
+    return { accessToken: authEntity.accessToken };
   }
 
   // @HttpCode(HttpStatus.OK)
