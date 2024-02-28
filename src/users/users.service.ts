@@ -6,17 +6,17 @@ import { DbService } from 'src/db/db.service';
 export class UsersService {
   constructor(private readonly dbService: DbService) {}
 
-  async findUnique(args: Prisma.UserFindUniqueArgs): Promise<User | undefined> {
-    return this.dbService.user.findUnique(args);
+  create(data: Prisma.UserCreateInput): Promise<User> {
+    return this.dbService.user.create({ data });
   }
 
-  async create(user: Prisma.UserCreateInput): Promise<User> {
-    return this.dbService.user.create({ data: user });
-  }
-
-  async createWaitlist(
-    user: Prisma.WaitlistUserCreateInput,
+  createWaitlistUser(
+    data: Prisma.WaitlistUserCreateInput,
   ): Promise<WaitlistUser> {
-    return this.dbService.waitlistUser.create({ data: user });
+    return this.dbService.waitlistUser.create({ data });
+  }
+
+  findUnique(args: Prisma.UserFindUniqueArgs): Promise<User | undefined> {
+    return this.dbService.user.findUnique(args);
   }
 }

@@ -8,6 +8,7 @@ import { UsersModule } from './users/users.module';
 import { DbModule } from './db/db.module';
 import { ConfigModule } from '@nestjs/config';
 import { configuration } from './config/config';
+import { DomainsModule } from './domains/domains.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { configuration } from './config/config';
     AuthModule,
     UsersModule,
     DbModule,
+    DomainsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { UsersService } from 'src/users/users.service';
 import * as argon2 from 'argon2';
 import { LoginDto } from './dto/login.dto';
-import { AuthEntity } from './entity/auth.entity';
+import { AuthEntity } from './entities/auth.entity';
 import { JwtService } from '@nestjs/jwt';
 import { SignupDto } from './dto/signup.dto';
 

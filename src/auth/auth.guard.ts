@@ -38,11 +38,6 @@ export class AuthGuard implements CanActivate {
   }
 
   private extractTokenFromRequest(request: Request): string | undefined {
-    console.log({
-      origin: request.headers,
-      cookies: request.cookies,
-    });
-
     if (request.cookies['penkle-token']) {
       return request.cookies['penkle-token'];
     }

@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
   Req,
   Res,
@@ -17,12 +18,15 @@ import { UsersService } from 'src/users/users.service';
 import type { Response } from 'express';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { ConfigService } from '@nestjs/config';
+import { CreateDomainDto } from 'src/domains/dto/create-domain.dto';
+import { DomainsService } from 'src/domains/domains.service';
 
 @Controller('/')
 export class GatewayController {
   constructor(
     private readonly authService: AuthService,
     private readonly usersService: UsersService,
+    private readonly domainsService: DomainsService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -70,6 +74,47 @@ export class GatewayController {
   @HttpCode(HttpStatus.OK)
   @Post('/auth/waitlist')
   async waitlist(@Body() body: CreateWaitlistUserDto) {
-    return this.usersService.createWaitlist(body);
+    return this.usersService.createWaitlistUser(body);
   }
+
+  @UseGuards(AuthGuard)
+  @Post('/domains')
+  async create(@Body() createDomainDto: CreateDomainDto, @Req() req: Request) {
+    const { id } = await this.usersService.findUnique({
+      where: { id: req['user'].sub },
+    });
+
+    return this.domainsService.create({
+      data: {
+        ...createDomainDto,
+        user: { connect: { id } },
+      },
+    });
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('/domains')
+  findAll(@Req() req: Request) {
+    return this.domainsService.findAll({
+      where: { user: { id: req['user'].sub } },
+    });
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('/domains/:name')
+  findOne(@Param('name') name: string, @Req() req: Request) {
+    return this.domainsService.findUnique({
+      where: { name, user: { id: req['user'].sub } },
+    });
+  }
+
+  // @Patch(':id')
+  // update(@Param('id') id: string, @Body() updateDomainDto: UpdateDomainDto) {
+  //   return this.domainsService.update(+id, updateDomainDto);
+  // }
+
+  // @Delete(':id')
+  // remove(@Param('id') id: string) {
+  //   return this.domainsService.remove(+id);
+  // }
 }
