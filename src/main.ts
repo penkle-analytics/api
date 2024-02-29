@@ -10,7 +10,7 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
   const port = configService.get<Config['port']>('port');
-  const isProd = configService.get<string>('env') === 'production';
+  const isProd = configService.get<string>('NODE_ENV') === 'production';
 
   app.use(cookieParser());
   app.useGlobalPipes(new ValidationPipe());
