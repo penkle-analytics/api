@@ -15,7 +15,7 @@ async function bootstrap() {
   app.use(cookieParser());
   app.useGlobalPipes(new ValidationPipe());
   app.enableCors({
-    origin: isProd ? 'http://localhost:3000' : 'https://penkle.com',
+    origin: isProd ? 'https://penkle.com' : 'http://localhost:3000',
     credentials: true,
     allowedHeaders: ['Authorization', 'Content-Type', 'X-Requested-With'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
