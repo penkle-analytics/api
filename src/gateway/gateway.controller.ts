@@ -60,7 +60,7 @@ export class GatewayController {
     @Body() body: LoginDto,
     @Res({ passthrough: true }) response: Response,
   ) {
-    console.log('/auth/login', body);
+    console.log('POST', '/auth/login', body);
 
     const authEntity = await this.authService.login(body);
 
@@ -91,7 +91,7 @@ export class GatewayController {
   @HttpCode(HttpStatus.OK)
   @Post('/auth/waitlist')
   async waitlist(@Body() body: CreateWaitlistUserDto) {
-    console.log('/auth/waitlist', body);
+    console.log('POST', '/auth/waitlist', body);
 
     return this.usersService.createWaitlistUser(body);
   }
@@ -102,25 +102,22 @@ export class GatewayController {
     @Body() createDomainDto: CreateDomainDto,
     @Req() req: Request,
   ) {
-    console.log('/domains', createDomainDto);
+    console.log('POST', '/domains', createDomainDto);
 
-    const { id } = await this.usersService.findUnique({
-      where: { id: req['user'].sub },
-    });
-
-    return this.domainsService.create({
-      data: {
-        ...createDomainDto,
-        user: { connect: { id } },
-      },
-    });
+    return this.domainsService.create(req['user'].sub, createDomainDto);
   }
 
   @UseGuards(AuthGuard)
   @Get('/domains')
   findAllDomains(@Req() req: Request) {
     return this.domainsService.findAll({
-      where: { user: { id: req['user'].sub } },
+      where: {
+        users: {
+          some: {
+            userId: req['user'].sub,
+          },
+        },
+      },
     });
   }
 
@@ -129,7 +126,10 @@ export class GatewayController {
   findOneDomain(@Param('name') name: string, @Req() req: Request) {
     return this.domainsService.findUnique({
       // TODO: Make sure this only returns the domain if it belongs to the user
-      where: { name, user: { id: req['user'].sub } },
+      where: {
+        name,
+        users: { some: { userId: req['user'].sub } },
+      },
       include: {
         events: true,
       },
@@ -144,7 +144,7 @@ export class GatewayController {
     const ua = request.headers['user-agent'];
     const parsed = uaParser(ua);
 
-    console.log('/events', createEventDto, geo, parsed);
+    console.log('POST', '/events', createEventDto, geo, parsed);
 
     return this.eventsService.create(createEventDto, {
       geo,

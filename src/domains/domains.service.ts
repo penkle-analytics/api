@@ -1,13 +1,23 @@
 import { Injectable } from '@nestjs/common';
 import { DbService } from 'src/db/db.service';
 import { Prisma } from '@prisma/client';
+import { CreateDomainDto } from './dto/create-domain.dto';
 
 @Injectable()
 export class DomainsService {
   constructor(private readonly dbService: DbService) {}
 
-  create(data: Prisma.DomainCreateArgs) {
-    return this.dbService.domain.create(data);
+  create(userId: string, createDomainDto: CreateDomainDto) {
+    return this.dbService.domain.create({
+      data: {
+        ...createDomainDto,
+        users: {
+          create: {
+            userId,
+          },
+        },
+      },
+    });
   }
 
   findAll(data: Prisma.DomainFindManyArgs) {
