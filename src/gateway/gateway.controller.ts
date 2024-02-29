@@ -73,6 +73,7 @@ export class GatewayController {
     response.cookie('penkle-token', authEntity.accessToken, {
       httpOnly: true,
       secure: isProd,
+      domain: isProd ? '.penkle.com' : undefined,
       sameSite: isProd ? 'none' : 'lax',
       path: '/',
       expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7), // 7 days
