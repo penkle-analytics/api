@@ -39,6 +39,23 @@ model Domain {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user   User   @relation(fields: [userId], references: [id])
+  events Event[]
+  user   User    @relation(fields: [userId], references: [id])
   userId String
+}
+
+enum EventType {
+  PAGE_VIEW
+  CUSTOM_EVENT
+}
+
+model Event {
+  id        String    @id @default(cuid())
+  type      EventType
+  name      String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  domain   Domain @relation(fields: [domainId], references: [id])
+  domainId String
 }

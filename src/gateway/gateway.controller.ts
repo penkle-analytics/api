@@ -46,6 +46,8 @@ export class GatewayController {
     @Body() body: LoginDto,
     @Res({ passthrough: true }) response: Response,
   ) {
+    console.log('/auth/login', body);
+
     const authEntity = await this.authService.login(body);
 
     if (!authEntity) {
@@ -74,12 +76,16 @@ export class GatewayController {
   @HttpCode(HttpStatus.OK)
   @Post('/auth/waitlist')
   async waitlist(@Body() body: CreateWaitlistUserDto) {
+    console.log('/auth/waitlist', body);
+
     return this.usersService.createWaitlistUser(body);
   }
 
   @UseGuards(AuthGuard)
   @Post('/domains')
   async create(@Body() createDomainDto: CreateDomainDto, @Req() req: Request) {
+    console.log('/domains', createDomainDto);
+
     const { id } = await this.usersService.findUnique({
       where: { id: req['user'].sub },
     });
