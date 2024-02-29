@@ -144,7 +144,12 @@ export class GatewayController {
     const ua = request.headers['user-agent'];
     const parsed = uaParser(ua);
 
-    console.log('POST', '/events', createEventDto, geo, parsed);
+    console.log('POST', '/events', {
+      createEventDto,
+      geo,
+      parsed,
+      ip,
+    });
 
     return this.eventsService.create(createEventDto, {
       geo,

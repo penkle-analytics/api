@@ -10,12 +10,11 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
   const port = configService.get<Config['port']>('port');
-  const isProd = configService.get<string>('NODE_ENV') === 'production';
 
   app.use(cookieParser());
   app.useGlobalPipes(new ValidationPipe());
   app.enableCors({
-    origin: isProd ? 'https://penkle.com' : 'http://localhost:3000',
+    origin: true,
     credentials: true,
     allowedHeaders: ['Authorization', 'Content-Type', 'X-Requested-With'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
