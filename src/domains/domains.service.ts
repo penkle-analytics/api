@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { UpdateDomainDto } from './dto/update-domain.dto';
 import { DbService } from 'src/db/db.service';
 import { Prisma } from '@prisma/client';
 
@@ -19,11 +18,11 @@ export class DomainsService {
     return this.dbService.domain.findUnique(data);
   }
 
-  update(id: number, updateDomainDto: UpdateDomainDto) {
-    throw new Error('Method not implemented.');
+  update(data: Prisma.DomainUpdateArgs) {
+    return this.dbService.domain.update(data);
   }
 
-  remove(id: number) {
-    throw new Error('Method not implemented.');
+  remove(data: Prisma.DomainDeleteArgs) {
+    return this.dbService.domain.delete(data);
   }
 }

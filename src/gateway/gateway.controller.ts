@@ -15,17 +15,31 @@ import { LoginDto } from 'src/auth/dto/login.dto';
 import { SignupDto } from 'src/auth/dto/signup.dto';
 import { CreateWaitlistUserDto } from 'src/users/dto/create-waitlist-user.dto';
 import { UsersService } from 'src/users/users.service';
-import type { Response } from 'express';
+import type { Response, Request } from 'express';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { ConfigService } from '@nestjs/config';
 import { CreateDomainDto } from 'src/domains/dto/create-domain.dto';
 import { DomainsService } from 'src/domains/domains.service';
+import { CreateEventDto } from 'src/events/dto/create-event.dto';
+import { EventsService } from 'src/events/events.service';
+import * as requestIp from 'request-ip';
+import * as geoip from 'geoip-lite';
+import * as uaParser from 'ua-parser-js';
+
+declare global {
+  namespace Express {
+    interface User {
+      sub: string;
+    }
+  }
+}
 
 @Controller('/')
 export class GatewayController {
   constructor(
     private readonly authService: AuthService,
     private readonly usersService: UsersService,
+    private readonly eventsService: EventsService,
     private readonly domainsService: DomainsService,
     private readonly configService: ConfigService,
   ) {}
@@ -83,7 +97,10 @@ export class GatewayController {
 
   @UseGuards(AuthGuard)
   @Post('/domains')
-  async create(@Body() createDomainDto: CreateDomainDto, @Req() req: Request) {
+  async createDomain(
+    @Body() createDomainDto: CreateDomainDto,
+    @Req() req: Request,
+  ) {
     console.log('/domains', createDomainDto);
 
     const { id } = await this.usersService.findUnique({
@@ -100,7 +117,7 @@ export class GatewayController {
 
   @UseGuards(AuthGuard)
   @Get('/domains')
-  findAll(@Req() req: Request) {
+  findAllDomains(@Req() req: Request) {
     return this.domainsService.findAll({
       where: { user: { id: req['user'].sub } },
     });
@@ -108,9 +125,29 @@ export class GatewayController {
 
   @UseGuards(AuthGuard)
   @Get('/domains/:name')
-  findOne(@Param('name') name: string, @Req() req: Request) {
+  findOneDomain(@Param('name') name: string, @Req() req: Request) {
     return this.domainsService.findUnique({
+      // TODO: Make sure this only returns the domain if it belongs to the user
       where: { name, user: { id: req['user'].sub } },
+      include: {
+        events: true,
+      },
+    });
+  }
+
+  @Post('/events')
+  create(@Req() request: Request, @Body() createEventDto: CreateEventDto) {
+    const ip = requestIp.getClientIp(request);
+    const geo = geoip.lookup(ip);
+
+    const ua = request.headers['user-agent'];
+    const parsed = uaParser(ua);
+
+    console.log('/events', createEventDto, geo, parsed);
+
+    return this.eventsService.create(createEventDto, {
+      geo,
+      ua: parsed,
     });
   }
 

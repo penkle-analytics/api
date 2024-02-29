@@ -1,10 +1,14 @@
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+
+export enum EventName {
+  PAGE_VIEW = 'PAGE_VIEW',
+}
 
 export class CreateEventDto {
   // Event name
-  @IsString()
+  @IsEnum([EventName.PAGE_VIEW])
   @IsNotEmpty()
-  n!: string;
+  n!: EventName;
 
   // Current Href
   @IsString()

@@ -46,13 +46,18 @@ model Domain {
 
 enum EventType {
   PAGE_VIEW
-  CUSTOM_EVENT
+  // CUSTOM_EVENT
 }
 
 model Event {
   id        String    @id @default(cuid())
   type      EventType
-  name      String?
+  // name      String?
+  href      String?
+  referrer  String?
+  location  String?
+  browser   String?
+  os        String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
