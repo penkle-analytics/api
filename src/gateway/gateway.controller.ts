@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -25,6 +26,7 @@ import { EventsService } from 'src/events/events.service';
 import * as requestIp from 'request-ip';
 import * as geoip from 'geoip-lite';
 import * as uaParser from 'ua-parser-js';
+import { isbot } from 'isbot';
 
 declare global {
   namespace Express {
@@ -57,12 +59,12 @@ export class GatewayController {
   @HttpCode(HttpStatus.OK)
   @Post('/auth/login')
   async login(
-    @Body() body: LoginDto,
+    @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) response: Response,
   ) {
-    console.log('POST', '/auth/login', body);
+    console.log('POST /auth/login', { loginDto });
 
-    const authEntity = await this.authService.login(body);
+    const authEntity = await this.authService.login(loginDto);
 
     if (!authEntity) {
       return null;
@@ -90,10 +92,10 @@ export class GatewayController {
 
   @HttpCode(HttpStatus.OK)
   @Post('/auth/waitlist')
-  async waitlist(@Body() body: CreateWaitlistUserDto) {
-    console.log('POST', '/auth/waitlist', body);
+  async waitlist(@Body() createWaitlistUserDto: CreateWaitlistUserDto) {
+    console.log('POST /auth/waitlist', { createWaitlistUserDto });
 
-    return this.usersService.createWaitlistUser(body);
+    return this.usersService.createWaitlistUser(createWaitlistUserDto);
   }
 
   @UseGuards(AuthGuard)
@@ -102,7 +104,7 @@ export class GatewayController {
     @Body() createDomainDto: CreateDomainDto,
     @Req() req: Request,
   ) {
-    console.log('POST', '/domains', createDomainDto);
+    console.log('POST /domains', { createDomainDto });
 
     return this.domainsService.create(req['user'].sub, createDomainDto);
   }
@@ -138,17 +140,27 @@ export class GatewayController {
 
   @Post('/events')
   create(@Req() request: Request, @Body() createEventDto: CreateEventDto) {
+    const ua = request.headers['user-agent'];
+
+    if (isbot(ua)) {
+      throw new BadRequestException('Bot detected');
+    }
+
+    const host = new URL(createEventDto.h).host;
+
+    if (host !== createEventDto.d) {
+      throw new BadRequestException('Host and domain do not match');
+    }
+
     const ip = requestIp.getClientIp(request);
     const geo = geoip.lookup(ip);
 
-    const ua = request.headers['user-agent'];
     const parsed = uaParser(ua);
 
-    console.log('POST', '/events', {
+    console.log('POST /events', {
       createEventDto,
       geo,
       parsed,
-      ip,
     });
 
     return this.eventsService.create(createEventDto, {
