@@ -149,6 +149,21 @@ export class GatewayController {
       eventsInWeek.push({ date, value: count });
     }
 
+    const countriesWithCount = events.reduce(
+      (acc, event) =>
+        acc.set(event.location, (acc.get(event.location) || 0) + 1),
+      new Map(),
+    );
+
+    const routesWithCount = events.reduce(
+      (acc, event) =>
+        acc.set(
+          new URL(event.href).pathname,
+          (acc.get(new URL(event.href).pathname) || 0) + 1,
+        ),
+      new Map(),
+    );
+
     const domain = await this.domainsService.findUnique({
       // TODO: Make sure this only returns the domain if it belongs to the user
       where: {
@@ -162,6 +177,20 @@ export class GatewayController {
       ...domain,
       events,
       eventsInWeek: eventsInWeek.reverse(),
+      countriesWithCount: Array.from(countriesWithCount)
+        .map(([country, count]) => ({
+          country,
+          count,
+        }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10),
+      routesWithCount: Array.from(routesWithCount)
+        .map(([route, count]) => ({
+          route,
+          count,
+        }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10),
     };
   }
 
