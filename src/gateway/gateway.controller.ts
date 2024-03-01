@@ -27,6 +27,7 @@ import * as requestIp from 'request-ip';
 import * as geoip from 'geoip-lite';
 import * as uaParser from 'ua-parser-js';
 import { isbot } from 'isbot';
+import * as dayjs from 'dayjs';
 
 declare global {
   namespace Express {
@@ -125,17 +126,43 @@ export class GatewayController {
 
   @UseGuards(AuthGuard)
   @Get('/domains/:name')
-  findOneDomain(@Param('name') name: string, @Req() req: Request) {
-    return this.domainsService.findUnique({
+  async findOneDomain(@Param('name') name: string, @Req() req: Request) {
+    const events = await this.eventsService.findAll({
+      where: {
+        domain: {
+          name,
+          users: { some: { userId: req['user'].sub } },
+        },
+        createdAt: {
+          gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7), // 7 days
+        },
+      },
+    });
+
+    const eventsInWeek = [];
+
+    for (let i = 0; i < 7; i++) {
+      const date = dayjs().subtract(i, 'day').startOf('day').toDate();
+      const count = events.filter((event) =>
+        dayjs(event.createdAt).isSame(date, 'day'),
+      ).length;
+      eventsInWeek.push({ date, value: count });
+    }
+
+    const domain = await this.domainsService.findUnique({
       // TODO: Make sure this only returns the domain if it belongs to the user
       where: {
         name,
         users: { some: { userId: req['user'].sub } },
       },
-      include: {
-        events: true,
-      },
     });
+
+    // make sure the last 7 days are returned
+    return {
+      ...domain,
+      events,
+      eventsInWeek: eventsInWeek.reverse(),
+    };
   }
 
   @Post('/events')
