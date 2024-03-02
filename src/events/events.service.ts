@@ -5,7 +5,7 @@ import { CreateEventDto } from './dto/create-event.dto';
 import * as geoip from 'geoip-lite';
 import * as uaParser from 'ua-parser-js';
 import * as dayjs from 'dayjs';
-import * as bcrypt from 'bcrypt';
+import crypto from 'crypto';
 
 @Injectable()
 export class EventsService {
@@ -62,8 +62,11 @@ export class EventsService {
 
   private createUniqueVisitorId(domain: string, ip: string, ua: string) {
     // TODO: Replace with a generated salt rotated daily
-    const dailySalt = dayjs().format('YYYY-MM-DD');
+    const salt = dayjs().format('YYYY-MM-DD');
 
-    return bcrypt.hashSync(`${dailySalt}-${domain}-${ip}-${ua}`, 10);
+    return crypto
+      .createHmac('sha256', salt)
+      .update(`${domain}-${ip}-${ua}`)
+      .digest('hex');
   }
 }
