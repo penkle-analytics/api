@@ -13,7 +13,6 @@ import {
 } from '@nestjs/common';
 import { AuthService } from 'src/auth/auth.service';
 import { LoginDto } from 'src/auth/dto/login.dto';
-import { SignupDto } from 'src/auth/dto/signup.dto';
 import { CreateWaitlistUserDto } from 'src/users/dto/create-waitlist-user.dto';
 import { UsersService } from 'src/users/users.service';
 import type { Response, Request } from 'express';
@@ -24,8 +23,6 @@ import { DomainsService } from 'src/domains/domains.service';
 import { CreateEventDto } from 'src/events/dto/create-event.dto';
 import { EventsService } from 'src/events/events.service';
 import * as requestIp from 'request-ip';
-import * as geoip from 'geoip-lite';
-import * as uaParser from 'ua-parser-js';
 import { isbot } from 'isbot';
 import * as dayjs from 'dayjs';
 

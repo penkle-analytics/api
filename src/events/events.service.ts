@@ -5,7 +5,7 @@ import { CreateEventDto } from './dto/create-event.dto';
 import * as geoip from 'geoip-lite';
 import * as uaParser from 'ua-parser-js';
 import * as dayjs from 'dayjs';
-import crypto from 'crypto';
+import { createHmac } from 'crypto';
 
 @Injectable()
 export class EventsService {
@@ -64,8 +64,7 @@ export class EventsService {
     // TODO: Replace with a generated salt rotated daily
     const salt = dayjs().format('YYYY-MM-DD');
 
-    return crypto
-      .createHmac('sha256', salt)
+    return createHmac('sha256', salt)
       .update(`${domain}-${ip}-${ua}`)
       .digest('hex');
   }
