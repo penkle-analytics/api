@@ -4,7 +4,7 @@ import { Prisma } from '@prisma/client';
 import { CreateEventDto } from './dto/create-event.dto';
 import * as geoip from 'geoip-lite';
 import * as uaParser from 'ua-parser-js';
-import dayjs from 'dayjs';
+import * as dayjs from 'dayjs';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
