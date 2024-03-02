@@ -25,6 +25,7 @@ import { EventsService } from 'src/events/events.service';
 import * as requestIp from 'request-ip';
 import { isbot } from 'isbot';
 import * as dayjs from 'dayjs';
+import { EventType } from '@prisma/client';
 
 declare global {
   namespace Express {
@@ -140,10 +141,26 @@ export class GatewayController {
 
     for (let i = 0; i < 7; i++) {
       const date = dayjs().subtract(i, 'day').startOf('day').toDate();
-      const count = events.filter((event) =>
+      const eventsForDay = events.filter((event) =>
         dayjs(event.createdAt).isSame(date, 'day'),
+      );
+
+      const views = eventsForDay.filter(
+        (event) => event.type === EventType.PAGE_VIEW,
       ).length;
-      eventsInWeek.push({ date, value: count });
+
+      // Return early if there are no events for the day
+      if (eventsForDay.every((event) => !event.uniqueVisitorId)) {
+        eventsInWeek.push({ date, views, uniqueVisitors: 0 });
+
+        continue;
+      }
+
+      const uniqueVisitors = new Set(
+        eventsForDay.map((event) => event.uniqueVisitorId),
+      ).size;
+
+      eventsInWeek.push({ date, views, uniqueVisitors });
     }
 
     const countriesWithCount = events.reduce(
@@ -161,6 +178,24 @@ export class GatewayController {
       new Map(),
     );
 
+    const osWithCount = events.reduce(
+      (acc, event) => acc.set(event.os, (acc.get(event.os) || 0) + 1),
+      new Map(),
+    );
+
+    const browsersWithCount = events.reduce(
+      (acc, event) => acc.set(event.browser, (acc.get(event.browser) || 0) + 1),
+      new Map(),
+    );
+
+    const referrersWithCount = events.reduce((acc, event) => {
+      if (event.referrer) {
+        return acc.set(event.referrer, (acc.get(event.referrer) || 0) + 1);
+      } else {
+        return acc.set('Direct / None', (acc.get('Direct / None') || 0) + 1);
+      }
+    }, new Map());
+
     const domain = await this.domainsService.findUnique({
       // TODO: Make sure this only returns the domain if it belongs to the user
       where: {
@@ -169,7 +204,6 @@ export class GatewayController {
       },
     });
 
-    // make sure the last 7 days are returned
     return {
       ...domain,
       events,
@@ -179,15 +213,31 @@ export class GatewayController {
           country,
           count,
         }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 10),
+        .sort((a, b) => b.count - a.count),
       routesWithCount: Array.from(routesWithCount)
         .map(([route, count]) => ({
           route,
           count,
         }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 10),
+        .sort((a, b) => b.count - a.count),
+      osWithCount: Array.from(osWithCount)
+        .map(([os, count]) => ({
+          os,
+          count,
+        }))
+        .sort((a, b) => b.count - a.count),
+      browsersWithCount: Array.from(browsersWithCount)
+        .map(([browser, count]) => ({
+          browser,
+          count,
+        }))
+        .sort((a, b) => b.count - a.count),
+      referrersWithCount: Array.from(referrersWithCount)
+        .map(([referrer, count]) => ({
+          referrer,
+          count,
+        }))
+        .sort((a, b) => b.count - a.count),
     };
   }
 
