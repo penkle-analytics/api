@@ -2,8 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { DbService } from 'src/db/db.service';
 import { Prisma } from '@prisma/client';
 import { CreateEventDto } from './dto/create-event.dto';
-import type { Lookup } from 'geoip-lite';
-import type { IResult } from 'ua-parser-js';
+import * as geoip from 'geoip-lite';
+import * as uaParser from 'ua-parser-js';
+import dayjs from 'dayjs';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class EventsService {
@@ -11,19 +13,28 @@ export class EventsService {
 
   create(
     createEventDto: CreateEventDto,
-    meta?: {
-      geo: Lookup;
-      ua: IResult;
+    meta: {
+      ip: string;
+      ua: string;
     },
   ) {
+    const geo = geoip.lookup(meta.ip);
+    const parsed = uaParser(meta.ua);
+
     return this.dbService.event.create({
       data: {
+        uniqueVisitorId: this.createUniqueVisitorId(
+          createEventDto.d,
+          meta.ip,
+          meta.ua,
+        ),
         type: createEventDto.n,
         href: createEventDto.h,
         referrer: createEventDto.r,
-        location: meta?.geo?.country,
-        browser: meta?.ua.browser.name,
-        os: meta?.ua.os.name,
+        location: geo?.country,
+        country: geo?.country,
+        browser: parsed.browser.name,
+        os: parsed.os.name,
         domain: {
           connect: {
             name: createEventDto.d,
@@ -47,5 +58,12 @@ export class EventsService {
 
   remove(data: Prisma.EventDeleteArgs) {
     return this.dbService.event.delete(data);
+  }
+
+  private createUniqueVisitorId(domain: string, ip: string, ua: string) {
+    // TODO: Replace with a generated salt rotated daily
+    const dailySalt = dayjs().format('YYYY-MM-DD');
+
+    return bcrypt.hashSync(`${dailySalt}-${domain}-${ip}-${ua}`, 10);
   }
 }

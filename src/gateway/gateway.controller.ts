@@ -195,7 +195,10 @@ export class GatewayController {
   }
 
   @Post('/events')
-  create(@Req() request: Request, @Body() createEventDto: CreateEventDto) {
+  async create(
+    @Req() request: Request,
+    @Body() createEventDto: CreateEventDto,
+  ) {
     const ua = request.headers['user-agent'];
 
     if (isbot(ua)) {
@@ -209,20 +212,17 @@ export class GatewayController {
     }
 
     const ip = requestIp.getClientIp(request);
-    const geo = geoip.lookup(ip);
-
-    const parsed = uaParser(ua);
 
     console.log('POST /events', {
       createEventDto,
-      geo,
-      parsed,
     });
 
-    return this.eventsService.create(createEventDto, {
-      geo,
-      ua: parsed,
+    await this.eventsService.create(createEventDto, {
+      ip,
+      ua,
     });
+
+    return 'ok';
   }
 
   // @Patch(':id')

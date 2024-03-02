@@ -62,16 +62,18 @@ enum EventType {
 }
 
 model Event {
-  id        String    @id @default(cuid())
-  type      EventType
+  id              String    @id @default(cuid())
+  type            EventType
   // name      String?
-  href      String?
-  referrer  String?
-  location  String?
-  browser   String?
-  os        String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  uniqueVisitorId String?   @default(cuid())
+  href            String?
+  referrer        String?
+  location        String?
+  country         String?
+  browser         String?
+  os              String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   domain   Domain @relation(fields: [domainId], references: [id])
   domainId String
