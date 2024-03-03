@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Query,
   Req,
   Res,
   UseGuards,
@@ -26,6 +27,7 @@ import * as requestIp from 'request-ip';
 import { isbot } from 'isbot';
 import * as dayjs from 'dayjs';
 import { EventType } from '@prisma/client';
+import { FilterEventsDto } from 'src/events/dto/filter-events.dto';
 
 declare global {
   namespace Express {
@@ -124,7 +126,11 @@ export class GatewayController {
 
   @UseGuards(AuthGuard)
   @Get('/domains/:name')
-  async findOneDomain(@Param('name') name: string, @Req() req: Request) {
+  async findOneDomain(
+    @Req() req: Request,
+    @Param('name') name: string,
+    @Query() query: FilterEventsDto,
+  ) {
     const events = await this.eventsService.findAll({
       where: {
         domain: {
@@ -134,6 +140,11 @@ export class GatewayController {
         createdAt: {
           gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7), // 7 days
         },
+        ...(query?.referrer && { referrer: query.referrer }),
+        ...(query?.page && { href: { contains: query.page } }),
+        ...(query?.country && { location: query.country }),
+        ...(query?.os && { os: query.os }),
+        ...(query?.browser && { browser: query.browser }),
       },
     });
 
