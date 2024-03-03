@@ -20,6 +20,9 @@ export class EventsService {
   ) {
     const geo = geoip.lookup(meta.ip);
     const parsed = uaParser(meta.ua);
+    const country = new Intl.DisplayNames(['en'], { type: 'region' }).of(
+      geo?.country,
+    );
 
     return this.dbService.event.create({
       data: {
@@ -31,8 +34,8 @@ export class EventsService {
         type: createEventDto.n,
         href: createEventDto.h,
         referrer: createEventDto.r,
-        location: geo?.country,
-        country: geo?.country,
+        country,
+        countryCode: geo?.country,
         browser: parsed.browser.name,
         os: parsed.os.name,
         domain: {

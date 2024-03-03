@@ -68,8 +68,8 @@ model Event {
   uniqueVisitorId String?   @default(cuid())
   href            String?
   referrer        String?
-  location        String?
   country         String?
+  countryCode     String?
   browser         String?
   os              String?
   createdAt       DateTime  @default(now())

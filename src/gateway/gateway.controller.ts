@@ -175,8 +175,7 @@ export class GatewayController {
     }
 
     const countriesWithCount = events.reduce(
-      (acc, event) =>
-        acc.set(event.location, (acc.get(event.location) || 0) + 1),
+      (acc, event) => acc.set(event.country, (acc.get(event.country) || 0) + 1),
       new Map(),
     );
 
