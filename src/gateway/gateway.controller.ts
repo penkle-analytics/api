@@ -142,7 +142,7 @@ export class GatewayController {
         },
         ...(query?.referrer && { referrer: query.referrer }),
         ...(query?.page && { href: { contains: query.page } }),
-        ...(query?.country && { location: query.country }),
+        ...(query?.country && { country: query.country }),
         ...(query?.os && { os: query.os }),
         ...(query?.browser && { browser: query.browser }),
       },
