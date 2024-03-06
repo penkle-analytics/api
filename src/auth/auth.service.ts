@@ -5,6 +5,7 @@ import { LoginDto } from './dto/login.dto';
 import { AuthEntity } from './entities/auth.entity';
 import { JwtService } from '@nestjs/jwt';
 import { SignupDto } from './dto/signup.dto';
+import { ResetDto } from './dto/reset.dto';
 
 @Injectable()
 export class AuthService {
@@ -33,7 +34,15 @@ export class AuthService {
     return null;
   }
 
-  async signup({ password, ...rest }: SignupDto): Promise<AuthEntity> {
+  async signup({
+    password,
+    confirmPassword,
+    ...rest
+  }: SignupDto): Promise<AuthEntity> {
+    if (password !== confirmPassword) {
+      return null;
+    }
+
     const user = await this.usersService.create({
       ...rest,
       password: await argon2.hash(password),
@@ -46,6 +55,30 @@ export class AuthService {
         accessToken: this.jwtService.sign(payload),
       };
     }
+
+    return null;
+  }
+
+  async reset(
+    userId: string,
+    { password, confirmPassword }: ResetDto,
+  ): Promise<AuthEntity> {
+    if (password !== confirmPassword) {
+      return null;
+    }
+
+    const user = await this.usersService.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return null;
+    }
+
+    await this.usersService.update({
+      where: { id: userId },
+      data: { password: await argon2.hash(password) },
+    });
 
     return null;
   }

@@ -19,4 +19,8 @@ export class UsersService {
   findUnique(args: Prisma.UserFindUniqueArgs): Promise<User | undefined> {
     return this.dbService.user.findUnique(args);
   }
+
+  update(args: Prisma.UserUpdateArgs): Promise<User> {
+    return this.dbService.user.update(args);
+  }
 }

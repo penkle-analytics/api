@@ -65,13 +65,13 @@ model Event {
   id              String    @id @default(cuid())
   type            EventType
   // name      String?
-  uniqueVisitorId String?   @default(cuid())
-  href            String?
+  uniqueVisitorId String?
+  href            String
   referrer        String?
-  country         String?
-  countryCode     String?
-  browser         String?
-  os              String?
+  country         String
+  countryCode     String
+  browser         String
+  os              String
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 

@@ -27,11 +27,9 @@ import * as requestIp from 'request-ip';
 import { isbot } from 'isbot';
 import * as dayjs from 'dayjs';
 import { EventType } from '@prisma/client';
-import {
-  FilterEventsDto,
-  Interval,
-  Period,
-} from 'src/events/dto/filter-events.dto';
+import { FilterEventsDto } from 'src/events/dto/filter-events.dto';
+import { ResetDto } from 'src/auth/dto/reset.dto';
+import { SignupDto } from 'src/auth/dto/signup.dto';
 
 declare global {
   namespace Express {
@@ -89,11 +87,40 @@ export class GatewayController {
     return { accessToken: authEntity.accessToken };
   }
 
-  // @HttpCode(HttpStatus.OK)
-  // @Post('/auth/signup')
-  // async signup(@Body() body: SignupDto) {
-  //   return this.authService.signup(body);
-  // }
+  @HttpCode(HttpStatus.OK)
+  @Post('/auth/signup')
+  async signup(
+    @Body() signupDto: SignupDto,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    console.log('POST /auth/login', { signupDto });
+
+    const authEntity = await this.authService.signup(signupDto);
+
+    if (!authEntity) {
+      return null;
+    }
+
+    const isProd = this.configService.get<string>('NODE_ENV') === 'production';
+
+    response.cookie('penkle-token', authEntity.accessToken, {
+      httpOnly: true,
+      secure: isProd,
+      domain: isProd ? '.penkle.com' : undefined,
+      sameSite: isProd ? 'none' : 'lax',
+      path: '/',
+      expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7), // 7 days
+    });
+
+    return { accessToken: authEntity.accessToken };
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard)
+  @Post('/auth/reset')
+  async reset(@Req() req: Request, @Body() body: ResetDto) {
+    return this.authService.reset(req.user.sub, body);
+  }
 
   @HttpCode(HttpStatus.OK)
   @Post('/auth/waitlist')
@@ -194,16 +221,6 @@ export class GatewayController {
       eventsInPeriod.push({ date, views, uniqueVisitors });
     }
 
-    if (
-      eventsInPeriod.reduce((acc, event) => acc + event.views, 0) !==
-      eventsData.length
-    ) {
-      console.error('POST /domains/:name - Mismatch in views', {
-        views: eventsInPeriod.reduce((acc, event) => acc + event.views, 0),
-        total: eventsData.length,
-      });
-    }
-
     const countriesWithCount = eventsData.reduce(
       (acc, event) => acc.set(event.country, (acc.get(event.country) || 0) + 1),
       new Map(),
@@ -286,6 +303,19 @@ export class GatewayController {
     @Req() request: Request,
     @Body() createEventDto: CreateEventDto,
   ) {
+    const events = await this.eventsService.findAll({
+      where: {
+        createdAt: {
+          gte: dayjs().startOf('month').toDate(),
+          lte: dayjs().endOf('month').toDate(),
+        },
+      },
+    });
+
+    if (events.length > 5000) {
+      throw new BadRequestException('Monthly limit exceeded');
+    }
+
     const ua = request.headers['user-agent'];
 
     if (isbot(ua)) {
@@ -312,13 +342,28 @@ export class GatewayController {
     return 'ok';
   }
 
-  // @Patch(':id')
-  // update(@Param('id') id: string, @Body() updateDomainDto: UpdateDomainDto) {
-  //   return this.domainsService.update(+id, updateDomainDto);
-  // }
+  @UseGuards(AuthGuard)
+  @Get('/check/:domain')
+  async checkDomain(@Req() req: Request, @Param('domain') domain: string) {
+    const events = await this.eventsService.findAll({
+      where: {
+        domain: {
+          name: domain,
+          users: { some: { userId: req['user'].sub } },
+        },
+      },
+    });
 
-  // @Delete(':id')
-  // remove(@Param('id') id: string) {
-  //   return this.domainsService.remove(+id);
-  // }
+    if (events.length > 0) {
+      return {
+        domain,
+        installed: true,
+      };
+    }
+
+    return {
+      domain,
+      installed: false,
+    };
+  }
 }
