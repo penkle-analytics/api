@@ -30,6 +30,9 @@ import { EventType } from '@prisma/client';
 import { FilterEventsDto } from 'src/events/dto/filter-events.dto';
 import { ResetDto } from 'src/auth/dto/reset.dto';
 import { SignupDto } from 'src/auth/dto/signup.dto';
+import { CreateCheckoutSession } from 'src/subscriptions/dto/create-checkout-session';
+import { SubscriptionsService } from 'src/subscriptions/subscriptions.service';
+import { CreateSessionDto } from 'src/subscriptions/dto/create-billing-portal-session.dto';
 
 declare global {
   namespace Express {
@@ -46,6 +49,7 @@ export class GatewayController {
     private readonly usersService: UsersService,
     private readonly eventsService: EventsService,
     private readonly domainsService: DomainsService,
+    private readonly subscriptionsService: SubscriptionsService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -365,5 +369,40 @@ export class GatewayController {
       domain,
       installed: false,
     };
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('/subscriptions/checkout-session')
+  async createCheckoutSession(
+    @Req() req: Request,
+    @Body() createCheckoutSession: CreateCheckoutSession,
+  ) {
+    console.log('POST /subscriptions/checkout-session', {
+      createCheckoutSession,
+    });
+
+    return this.subscriptionsService.createCheckoutSession(
+      req['user'].sub,
+      createCheckoutSession,
+    );
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('/subscriptions/billing-portal-session')
+  async createBillingPortalSession(
+    @Req() req: Request,
+    @Body() createSessionDto: CreateSessionDto,
+  ) {
+    console.log('POST /subscriptions/billing-portal-session');
+
+    return this.subscriptionsService.createBillingPortalSession(
+      req['user'].sub,
+    );
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('/subscriptions')
+  async getSubscriptions(@Req() req: Request) {
+    return this.subscriptionsService.findSubscriptionByUserId(req['user'].sub);
   }
 }
