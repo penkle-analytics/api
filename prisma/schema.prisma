@@ -23,6 +23,8 @@ enum SubscriptionPlan {
 enum SubscriptionStatus {
   ACTIVE
   TRIALING
+  PAUSED
+  CANCELLED
 }
 
 model Subscription {
@@ -32,6 +34,8 @@ model Subscription {
   productId          String             @unique
   subscriptionPlan   SubscriptionPlan
   subscriptionStatus SubscriptionStatus
+  periodEndsAt       DateTime
+  cancelAtPeriodEnd  Boolean            @default(false)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 

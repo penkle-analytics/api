@@ -4,12 +4,10 @@ import { Config } from 'src/config/config';
 import { DbService } from 'src/db/db.service';
 import { UsersService } from 'src/users/users.service';
 import Stripe from 'stripe';
-import {
-  CreateCheckoutSession,
-  StartPlanDto,
-} from './dto/create-checkout-session';
+import { CreateCheckoutSessionDto } from './dto/create-checkout-session';
 import { plans } from 'src/config/stripe';
 import { CreateBillingPortalSessionDto } from './dto/create-billing-portal-session.dto';
+import { ChangeSubscriptionPlanDto } from './dto/change-subscription-plan.dto';
 
 @Injectable()
 export class SubscriptionsService {
@@ -31,7 +29,10 @@ export class SubscriptionsService {
     });
   }
 
-  async createCheckoutSession(userId: string, { plan }: CreateCheckoutSession) {
+  async createCheckoutSession(
+    userId: string,
+    { plan }: CreateCheckoutSessionDto,
+  ) {
     const user = await this.usersService.findUnique({
       where: { id: userId },
     });
@@ -80,5 +81,54 @@ export class SubscriptionsService {
     return {
       url: session.url,
     };
+  }
+
+  async unsubscribe(userId: string) {
+    const billing = await this.dbService.subscription.findUnique({
+      where: { userId },
+    });
+
+    await this.stripe.subscriptions.update(billing.subscriptionId, {
+      cancel_at_period_end: true,
+    });
+
+    return { success: true };
+  }
+
+  async resubscribe(userId: string) {
+    const billing = await this.dbService.subscription.findUnique({
+      where: { userId },
+    });
+
+    await this.stripe.subscriptions.update(billing.subscriptionId, {
+      cancel_at_period_end: false,
+    });
+
+    return { success: true };
+  }
+
+  async changeSubscriptionPlan(
+    userId: string,
+    { plan }: ChangeSubscriptionPlanDto,
+  ) {
+    const billing = await this.dbService.subscription.findUnique({
+      where: { userId },
+    });
+    const subscription = await this.stripe.subscriptions.retrieve(
+      billing.subscriptionId,
+    );
+    const subItem = subscription.items.data[0].id;
+    const priceId = plans[plan].priceId;
+
+    await this.stripe.subscriptions.update(billing.subscriptionId, {
+      items: [
+        {
+          id: subItem,
+          price: priceId,
+        },
+      ],
+    });
+
+    return { success: true };
   }
 }

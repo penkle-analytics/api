@@ -1,4 +1,4 @@
-import { SubscriptionPlan } from 'src/subscriptions/dto/create-checkout-session';
+import { SubscriptionPlan } from '@prisma/client';
 
 export const plans: {
   [key in SubscriptionPlan]: {

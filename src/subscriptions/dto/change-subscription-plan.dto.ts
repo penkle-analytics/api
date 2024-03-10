@@ -1,7 +1,7 @@
 import { SubscriptionPlan } from '@prisma/client';
-import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsUrl } from 'class-validator';
 
-export class CreateCheckoutSessionDto {
+export class ChangeSubscriptionPlanDto {
   @IsEnum([
     SubscriptionPlan.DEVELOPER,
     SubscriptionPlan.HOBBYIST,
@@ -11,7 +11,7 @@ export class CreateCheckoutSessionDto {
   @IsNotEmpty()
   plan!: SubscriptionPlan;
 
-  @IsString()
+  @IsUrl()
   @IsOptional()
   redirectUrl?: string;
 }

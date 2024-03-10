@@ -50,11 +50,17 @@ export class WebhooksController {
       case 'customer.subscription.deleted':
         await this.webhooksService.handleSubscriptionDeleted(event.data.object);
         break;
+      case 'customer.subscription.paused':
+        await this.webhooksService.handleSubscriptionPaused(event.data.object);
+        break;
+      case 'customer.subscription.resumed':
+        await this.webhooksService.handleSubscriptionResumed(event.data.object);
+        break;
       case 'customer.subscription.updated':
         await this.webhooksService.handleSubscriptionUpdated(event.data.object);
         break;
       default:
-        console.log(`Unhandled event type ${event.type}`);
+        console.warn(`Unhandled event type: ${event.type}`);
     }
 
     // Return a 200 response to acknowledge receipt of the event

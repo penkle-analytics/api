@@ -23,7 +23,8 @@
     "prisma:migrate": "npx prisma migrate dev",
     "prisma:deploy": "npx prisma migrate deploy",
     "prisma:studio": "npx prisma studio",
-    "prisma:reset": "npx prisma migrate reset"
+    "prisma:reset": "npx prisma migrate reset",
+    "stripe:listen": "stripe listen --forward-to localhost:4000/webhooks/stripe"
   },
   "dependencies": {
     "@nestjs/common": "^8.0.0",
