@@ -36,6 +36,7 @@ import { CreateCheckoutSessionDto } from 'src/subscriptions/dto/create-checkout-
 import { SubscriptionsService } from 'src/subscriptions/subscriptions.service';
 import { CreateBillingPortalSessionDto } from 'src/subscriptions/dto/create-billing-portal-session.dto';
 import { ChangeSubscriptionPlanDto } from 'src/subscriptions/dto/change-subscription-plan.dto';
+import { FREE_PLAN_VIEW_LIMIT, plans } from 'src/config/stripe';
 
 declare global {
   namespace Express {
@@ -310,8 +311,11 @@ export class GatewayController {
     @Req() request: Request,
     @Body() createEventDto: CreateEventDto,
   ) {
-    const events = await this.eventsService.findAll({
+    const eventCount = await this.eventsService.count({
       where: {
+        domain: {
+          name: createEventDto.d,
+        },
         createdAt: {
           gte: dayjs().startOf('month').toDate(),
           lte: dayjs().endOf('month').toDate(),
@@ -319,7 +323,18 @@ export class GatewayController {
       },
     });
 
-    if (events.length > 5000) {
+    const subscription =
+      await this.subscriptionsService.findSubscriptionByDomain(
+        createEventDto.d,
+      );
+
+    let maxViews = FREE_PLAN_VIEW_LIMIT;
+
+    if (subscription) {
+      maxViews = plans[subscription.subscriptionPlan].maxViews;
+    }
+
+    if (eventCount >= maxViews) {
       throw new BadRequestException('Monthly limit exceeded');
     }
 

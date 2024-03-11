@@ -47,6 +47,10 @@ export class EventsService {
     });
   }
 
+  count(data: Prisma.EventCountArgs) {
+    return this.dbService.event.count(data);
+  }
+
   findAll(data: Prisma.EventFindManyArgs) {
     return this.dbService.event.findMany(data);
   }

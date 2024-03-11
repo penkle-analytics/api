@@ -8,6 +8,12 @@ import { CreateCheckoutSessionDto } from './dto/create-checkout-session';
 import { plans } from 'src/config/stripe';
 import { CreateBillingPortalSessionDto } from './dto/create-billing-portal-session.dto';
 import { ChangeSubscriptionPlanDto } from './dto/change-subscription-plan.dto';
+import { DomainsService } from 'src/domains/domains.service';
+import { Prisma, UserDomain } from '@prisma/client';
+
+type DomainWithUserDomain = Prisma.DomainGetPayload<{
+  include: { users: true };
+}>;
 
 @Injectable()
 export class SubscriptionsService {
@@ -16,6 +22,7 @@ export class SubscriptionsService {
   constructor(
     private readonly dbService: DbService,
     private readonly usersService: UsersService,
+    private readonly domainsService: DomainsService,
     private readonly configService: ConfigService,
   ) {
     this.stripe = new Stripe(
@@ -40,6 +47,25 @@ export class SubscriptionsService {
   }
 
   findSubscriptionByUserId(userId: string) {
+    return this.dbService.subscription.findUnique({
+      where: { userId },
+    });
+  }
+
+  async findSubscriptionByDomain(name: string) {
+    const domain = (await this.domainsService.findUnique({
+      where: { name },
+      include: {
+        users: true,
+      },
+    })) as DomainWithUserDomain;
+
+    if (!domain || !domain.users.length) {
+      return null;
+    }
+
+    const { userId } = domain.users[0];
+
     return this.dbService.subscription.findUnique({
       where: { userId },
     });
@@ -136,13 +162,14 @@ export class SubscriptionsService {
       billing.subscriptionId,
     );
     const subItem = subscription.items.data[0].id;
-    const priceId = plans[plan].priceId;
+    const subscriptions = await this.getSubscriptions();
+    const priceId = subscriptions.find((s) => s.plan === plan).priceId;
 
     await this.stripe.subscriptions.update(billing.subscriptionId, {
       items: [
         {
           id: subItem,
-          price: priceId,
+          price: priceId as string,
         },
       ],
     });

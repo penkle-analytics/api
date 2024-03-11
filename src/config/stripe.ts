@@ -1,20 +1,18 @@
 import { SubscriptionPlan } from '@prisma/client';
 
-export const plans: {
-  [key in SubscriptionPlan]: {
-    priceId: string;
-  };
-} = {
+export const plans = {
   [SubscriptionPlan.DEVELOPER]: {
-    priceId: 'price_1OrEdzBymC44pZVLtr3VRrXH',
+    maxViews: 0,
   },
   [SubscriptionPlan.HOBBYIST]: {
-    priceId: 'price_1OrEeGBymC44pZVLaMc7qPg8',
+    maxViews: 0,
   },
   [SubscriptionPlan.INDIE]: {
-    priceId: 'price_1OrEeTBymC44pZVL0QFlLRZy',
+    maxViews: 0,
   },
   [SubscriptionPlan.STARTUP]: {
-    priceId: '',
+    maxViews: 0,
   },
-};
+} as const;
+
+export const FREE_PLAN_VIEW_LIMIT = 5_000;
