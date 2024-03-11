@@ -27,7 +27,7 @@ export class EventsService {
     return this.dbService.event.create({
       data: {
         uniqueVisitorId: this.createUniqueVisitorId(
-          createEventDto.d,
+          createEventDto.d.toLowerCase(),
           meta.ip,
           meta.ua,
         ),
@@ -40,7 +40,7 @@ export class EventsService {
         os: parsed.os.name,
         domain: {
           connect: {
-            name: createEventDto.d,
+            name: createEventDto.d.toLowerCase(),
           },
         },
       },

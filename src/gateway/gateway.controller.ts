@@ -362,7 +362,7 @@ export class GatewayController {
 
     const host = new URL(createEventDto.h).host;
 
-    if (host !== createEventDto.d) {
+    if (host !== createEventDto.d.toLowerCase()) {
       throw new BadRequestException('Host and domain do not match');
     }
 
