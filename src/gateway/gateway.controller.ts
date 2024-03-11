@@ -311,52 +311,52 @@ export class GatewayController {
     @Req() request: Request,
     @Body() createEventDto: CreateEventDto,
   ) {
-    const user = await this.usersService.findMany({
-      where: {
-        domains: {
-          some: {
-            domain: {
-              name: createEventDto.d,
-            },
-          },
-        },
-      },
-    });
+    // const user = await this.usersService.findMany({
+    //   where: {
+    //     domains: {
+    //       some: {
+    //         domain: {
+    //           name: createEventDto.d,
+    //         },
+    //       },
+    //     },
+    //   },
+    // });
 
-    if (!user || user.length === 0) {
-      throw new BadRequestException('Domain not found');
-    }
+    // if (!user || user.length === 0) {
+    //   throw new BadRequestException('Domain not found');
+    // }
 
-    const eventCount = await this.eventsService.count({
-      where: {
-        domain: {
-          users: {
-            some: {
-              userId: user[0].id,
-            },
-          },
-        },
-        createdAt: {
-          gte: dayjs().startOf('month').toDate(),
-          lte: dayjs().endOf('month').toDate(),
-        },
-      },
-    });
+    // const eventCount = await this.eventsService.count({
+    //   where: {
+    //     domain: {
+    //       users: {
+    //         some: {
+    //           userId: user[0].id,
+    //         },
+    //       },
+    //     },
+    //     createdAt: {
+    //       gte: dayjs().startOf('month').toDate(),
+    //       lte: dayjs().endOf('month').toDate(),
+    //     },
+    //   },
+    // });
 
-    const subscription =
-      await this.subscriptionsService.findSubscriptionByDomain(
-        createEventDto.d,
-      );
+    // const subscription =
+    //   await this.subscriptionsService.findSubscriptionByDomain(
+    //     createEventDto.d,
+    //   );
 
-    let maxViews = FREE_PLAN_VIEW_LIMIT;
+    // let maxViews = FREE_PLAN_VIEW_LIMIT;
 
-    if (subscription) {
-      maxViews = plans[subscription.subscriptionPlan].maxViews;
-    }
+    // if (subscription) {
+    //   maxViews = plans[subscription.subscriptionPlan].maxViews;
+    // }
 
-    if (eventCount >= maxViews) {
-      throw new BadRequestException('Monthly limit exceeded');
-    }
+    // if (eventCount >= maxViews) {
+    //   throw new BadRequestException('Monthly limit exceeded');
+    // }
 
     const ua = request.headers['user-agent'];
 
