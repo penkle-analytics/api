@@ -6,7 +6,9 @@ import { Config } from './config/config';
 import * as cookieParser from 'cookie-parser';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    rawBody: true,
+  });
 
   const configService = app.get(ConfigService);
   const port = configService.get<Config['port']>('port');

@@ -5,7 +5,9 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   Param,
+  Patch,
   Post,
   Query,
   Req,
@@ -30,6 +32,10 @@ import { EventType } from '@prisma/client';
 import { FilterEventsDto } from 'src/events/dto/filter-events.dto';
 import { ResetDto } from 'src/auth/dto/reset.dto';
 import { SignupDto } from 'src/auth/dto/signup.dto';
+import { CreateCheckoutSessionDto } from 'src/subscriptions/dto/create-checkout-session';
+import { SubscriptionsService } from 'src/subscriptions/subscriptions.service';
+import { CreateBillingPortalSessionDto } from 'src/subscriptions/dto/create-billing-portal-session.dto';
+import { ChangeSubscriptionPlanDto } from 'src/subscriptions/dto/change-subscription-plan.dto';
 
 declare global {
   namespace Express {
@@ -46,6 +52,7 @@ export class GatewayController {
     private readonly usersService: UsersService,
     private readonly eventsService: EventsService,
     private readonly domainsService: DomainsService,
+    private readonly subscriptionsService: SubscriptionsService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -365,5 +372,80 @@ export class GatewayController {
       domain,
       installed: false,
     };
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('/subscriptions/checkout-session')
+  async createCheckoutSession(
+    @Req() req: Request,
+    @Body() createCheckoutSession: CreateCheckoutSessionDto,
+  ) {
+    console.log('POST /subscriptions/checkout-session', {
+      createCheckoutSession,
+    });
+
+    return this.subscriptionsService.createCheckoutSession(
+      req['user'].sub,
+      createCheckoutSession,
+    );
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('/subscriptions/billing-portal-session')
+  async createBillingPortalSession(
+    @Req() req: Request,
+    @Body() createBillingPortalSessionDto: CreateBillingPortalSessionDto,
+  ) {
+    console.log('POST /subscriptions/billing-portal-session');
+
+    return this.subscriptionsService.createBillingPortalSession(
+      req['user'].sub,
+      createBillingPortalSessionDto,
+    );
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('/subscriptions')
+  async getSubscriptions(@Req() req: Request) {
+    const subscription =
+      await this.subscriptionsService.findSubscriptionByUserId(req['user'].sub);
+
+    if (!subscription) {
+      throw new NotFoundException('Subscription not found');
+    }
+
+    return subscription;
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('/subscriptions/change-plan')
+  async changeSubscriptionPlan(
+    @Req() req: Request,
+    @Body() changeSubscriptionPlanDto: ChangeSubscriptionPlanDto,
+  ) {
+    console.log('POST /subscriptions/change-plan', {
+      changeSubscriptionPlanDto,
+    });
+
+    return this.subscriptionsService.changeSubscriptionPlan(
+      req['user'].sub,
+      changeSubscriptionPlanDto,
+    );
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('/subscriptions/unsubscribe')
+  async unsubscribe(@Req() req: Request) {
+    console.log('POST /subscriptions/unsubscribe');
+
+    return this.subscriptionsService.unsubscribe(req['user'].sub);
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('/subscriptions/resubscribe')
+  async resubscribe(@Req() req: Request) {
+    console.log('POST /subscriptions/resubscribe');
+
+    return this.subscriptionsService.resubscribe(req['user'].sub);
   }
 }

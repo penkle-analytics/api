@@ -9,6 +9,8 @@ import { DbModule } from './db/db.module';
 import { ConfigModule } from '@nestjs/config';
 import { configuration } from './config/config';
 import { DomainsModule } from './domains/domains.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { DomainsModule } from './domains/domains.module';
     UsersModule,
     DbModule,
     DomainsModule,
+    WebhooksModule,
+    SubscriptionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

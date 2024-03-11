@@ -4,9 +4,16 @@ import { UsersModule } from 'src/users/users.module';
 import { AuthModule } from 'src/auth/auth.module';
 import { DomainsModule } from 'src/domains/domains.module';
 import { EventsModule } from 'src/events/events.module';
+import { SubscriptionsModule } from 'src/subscriptions/subscriptions.module';
 
 @Module({
-  imports: [UsersModule, AuthModule, DomainsModule, EventsModule],
+  imports: [
+    UsersModule,
+    AuthModule,
+    DomainsModule,
+    EventsModule,
+    SubscriptionsModule,
+  ],
   controllers: [GatewayController],
 })
 export class GatewayModule {}
