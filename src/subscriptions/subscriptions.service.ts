@@ -23,6 +23,22 @@ export class SubscriptionsService {
     );
   }
 
+  async getSubscriptions() {
+    const products = await this.stripe.products.list({
+      active: true,
+      limit: 3,
+    });
+
+    return products.data
+      .filter((p) => p.default_price)
+      .map((product) => ({
+        id: product.id,
+        plan: product['metadata'].plan,
+        name: product.name,
+        priceId: product.default_price,
+      }));
+  }
+
   findSubscriptionByUserId(userId: string) {
     return this.dbService.subscription.findUnique({
       where: { userId },
@@ -37,13 +53,14 @@ export class SubscriptionsService {
       where: { id: userId },
     });
 
-    const priceId = plans[plan].priceId;
+    const subscriptions = await this.getSubscriptions();
+    const priceId = subscriptions.find((s) => s.plan === plan).priceId;
 
     const session = await this.stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
         {
-          price: priceId,
+          price: priceId as string,
           quantity: 1,
         },
       ],
