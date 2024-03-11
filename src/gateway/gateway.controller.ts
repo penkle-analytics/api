@@ -73,8 +73,6 @@ export class GatewayController {
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) response: Response,
   ) {
-    console.log('POST /auth/login', { loginDto });
-
     const authEntity = await this.authService.login(loginDto);
 
     if (!authEntity) {
@@ -101,8 +99,6 @@ export class GatewayController {
     @Body() signupDto: SignupDto,
     @Res({ passthrough: true }) response: Response,
   ) {
-    console.log('POST /auth/login', { signupDto });
-
     const authEntity = await this.authService.signup(signupDto);
 
     if (!authEntity) {
