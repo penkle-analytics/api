@@ -72,6 +72,7 @@ export class SubscriptionsService {
         'frontendUrl',
       )}/pricing`,
       customer_email: user.email,
+      allow_promotion_codes: true,
     });
 
     return {
