@@ -311,10 +311,30 @@ export class GatewayController {
     @Req() request: Request,
     @Body() createEventDto: CreateEventDto,
   ) {
+    const user = await this.usersService.findMany({
+      where: {
+        domains: {
+          some: {
+            domain: {
+              name: createEventDto.d,
+            },
+          },
+        },
+      },
+    });
+
+    if (!user || user.length === 0) {
+      throw new BadRequestException('Domain not found');
+    }
+
     const eventCount = await this.eventsService.count({
       where: {
         domain: {
-          name: createEventDto.d,
+          users: {
+            some: {
+              userId: user[0].id,
+            },
+          },
         },
         createdAt: {
           gte: dayjs().startOf('month').toDate(),

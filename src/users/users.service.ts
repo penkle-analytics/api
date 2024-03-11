@@ -20,6 +20,10 @@ export class UsersService {
     return this.dbService.user.findUnique(args);
   }
 
+  findMany(args: Prisma.UserFindManyArgs) {
+    return this.dbService.user.findMany(args);
+  }
+
   update(args: Prisma.UserUpdateArgs): Promise<User> {
     return this.dbService.user.update(args);
   }
