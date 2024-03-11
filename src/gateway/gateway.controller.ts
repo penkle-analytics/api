@@ -159,6 +159,141 @@ export class GatewayController {
     });
   }
 
+  @Get('/domains/demo')
+  async getDemoDomain(@Req() req: Request, @Query() query: FilterEventsDto) {
+    query.period ||= 'week';
+    query.interval ||= 'day';
+    query.date ||= dayjs().toISOString();
+
+    const from = dayjs(query.date).subtract(1, query.period).toDate();
+    const to = dayjs(query.date).toDate();
+
+    const eventsData = await this.eventsService.findAll({
+      where: {
+        domain: {
+          name: 'penkle.com',
+        },
+        createdAt: {
+          gte: from,
+          lte: to,
+        },
+        ...(query?.referrer && {
+          referrer: query.referrer === 'Direct / None' ? null : query.referrer,
+        }),
+        ...(query?.page && { href: { contains: query.page } }),
+        ...(query?.country && { country: query.country }),
+        ...(query?.os && { os: query.os }),
+        ...(query?.browser && { browser: query.browser }),
+      },
+    });
+
+    const dataPoints = dayjs(to).diff(from, query.interval) + 1;
+
+    const eventsInPeriod: {
+      date: Date;
+      views: number;
+      uniqueVisitors: number;
+    }[] = [];
+
+    for (let i = 0; i < dataPoints; i++) {
+      const date = dayjs(to).subtract(i, query.interval).toDate();
+      const eventsForInterval = eventsData.filter((event) =>
+        dayjs(event.createdAt).isSame(date, query.interval),
+      );
+
+      const views = eventsForInterval.filter(
+        (event) => event.type === EventType.PAGE_VIEW,
+      ).length;
+
+      // Return early if there are no events for the day
+      if (eventsForInterval.every((event) => !event.uniqueVisitorId)) {
+        eventsInPeriod.push({ date, views, uniqueVisitors: 0 });
+
+        continue;
+      }
+
+      const uniqueVisitors = new Set(
+        eventsForInterval.map((event) => event.uniqueVisitorId),
+      ).size;
+
+      eventsInPeriod.push({ date, views, uniqueVisitors });
+    }
+
+    const countriesWithCount = eventsData.reduce(
+      (acc, event) => acc.set(event.country, (acc.get(event.country) || 0) + 1),
+      new Map(),
+    );
+
+    const routesWithCount = eventsData.reduce(
+      (acc, event) =>
+        acc.set(
+          new URL(event.href).pathname,
+          (acc.get(new URL(event.href).pathname) || 0) + 1,
+        ),
+      new Map(),
+    );
+
+    const osWithCount = eventsData.reduce(
+      (acc, event) => acc.set(event.os, (acc.get(event.os) || 0) + 1),
+      new Map(),
+    );
+
+    const browsersWithCount = eventsData.reduce(
+      (acc, event) => acc.set(event.browser, (acc.get(event.browser) || 0) + 1),
+      new Map(),
+    );
+
+    const referrersWithCount = eventsData.reduce((acc, event) => {
+      if (event.referrer) {
+        return acc.set(event.referrer, (acc.get(event.referrer) || 0) + 1);
+      } else {
+        return acc.set('Direct / None', (acc.get('Direct / None') || 0) + 1);
+      }
+    }, new Map());
+
+    const domain = await this.domainsService.findUnique({
+      where: {
+        name: 'penkle.com',
+      },
+    });
+
+    return {
+      ...domain,
+      events: eventsData,
+      eventsInPeriod: eventsInPeriod.reverse(),
+      countriesWithCount: Array.from(countriesWithCount)
+        .map(([country, count]) => ({
+          country,
+          count,
+        }))
+        .sort((a, b) => b.count - a.count),
+      routesWithCount: Array.from(routesWithCount)
+        .map(([route, count]) => ({
+          route,
+          count,
+        }))
+        .sort((a, b) => b.count - a.count),
+      osWithCount: Array.from(osWithCount)
+        .map(([os, count]) => ({
+          os,
+          count,
+        }))
+        .sort((a, b) => b.count - a.count),
+      browsersWithCount: Array.from(browsersWithCount)
+        .map(([browser, count]) => ({
+          browser,
+          count,
+        }))
+        .sort((a, b) => b.count - a.count),
+      referrersWithCount: Array.from(referrersWithCount)
+        .map(([referrer, count]) => ({
+          referrer,
+          count,
+        }))
+        .sort((a, b) => b.count - a.count),
+    };
+  }
+
   @UseGuards(AuthGuard)
   @Get('/domains/:name')
   async findOneDomain(
