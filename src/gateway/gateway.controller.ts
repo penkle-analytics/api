@@ -245,7 +245,10 @@ export class GatewayController {
 
     const referrersWithCount = eventsData.reduce((acc, event) => {
       if (event.referrer) {
-        return acc.set(event.referrer, (acc.get(event.referrer) || 0) + 1);
+        return acc.set(
+          new URL(event.referrer).origin,
+          (acc.get(new URL(event.referrer).origin) || 0) + 1,
+        );
       } else {
         return acc.set('Direct / None', (acc.get('Direct / None') || 0) + 1);
       }
@@ -259,7 +262,6 @@ export class GatewayController {
 
     return {
       ...domain,
-      events: eventsData,
       eventsInPeriod: eventsInPeriod.reverse(),
       countriesWithCount: Array.from(countriesWithCount)
         .map(([country, count]) => ({
@@ -386,7 +388,10 @@ export class GatewayController {
 
     const referrersWithCount = eventsData.reduce((acc, event) => {
       if (event.referrer) {
-        return acc.set(event.referrer, (acc.get(event.referrer) || 0) + 1);
+        return acc.set(
+          new URL(event.referrer).origin,
+          (acc.get(new URL(event.referrer).origin) || 0) + 1,
+        );
       } else {
         return acc.set('Direct / None', (acc.get('Direct / None') || 0) + 1);
       }
@@ -402,7 +407,6 @@ export class GatewayController {
 
     return {
       ...domain,
-      events: eventsData,
       eventsInPeriod: eventsInPeriod.reverse(),
       countriesWithCount: Array.from(countriesWithCount)
         .map(([country, count]) => ({
