@@ -79,6 +79,15 @@ export class SubscriptionsService {
       where: { id: userId },
     });
 
+    const discounts = [];
+
+    if (user.email.endsWith('@student.42.fr')) {
+      discounts.push({
+        coupon:
+          this.configService.get<Config['stripePromo42']>('stripePromo42'),
+      });
+    }
+
     const subscriptions = await this.getSubscriptions();
     const priceId = subscriptions.find((s) => s.plan === plan).priceId;
 
@@ -98,7 +107,10 @@ export class SubscriptionsService {
         'frontendUrl',
       )}/pricing`,
       customer_email: user.email,
-      allow_promotion_codes: true,
+      discounts,
+      ...(discounts.length === 0 && {
+        allow_promotion_codes: true,
+      }),
     });
 
     return {
