@@ -2,13 +2,13 @@ import { SubscriptionPlan } from '@prisma/client';
 
 export const plans = {
   [SubscriptionPlan.DEVELOPER]: {
-    maxViews: 0,
+    maxViews: 20_000,
   },
   [SubscriptionPlan.HOBBYIST]: {
-    maxViews: 0,
+    maxViews: 50_000,
   },
   [SubscriptionPlan.INDIE]: {
-    maxViews: 0,
+    maxViews: 100_000,
   },
   [SubscriptionPlan.STARTUP]: {
     maxViews: 0,
