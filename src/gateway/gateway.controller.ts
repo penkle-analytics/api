@@ -178,7 +178,12 @@ export class GatewayController {
           lte: to,
         },
         ...(query?.referrer && {
-          referrer: query.referrer === 'Direct / None' ? null : query.referrer,
+          referrer:
+            query.referrer === 'Direct / None'
+              ? null
+              : {
+                  startsWith: query.referrer,
+                },
         }),
         ...(query?.page && { href: { contains: query.page } }),
         ...(query?.country && { country: query.country }),
@@ -321,7 +326,12 @@ export class GatewayController {
           lte: to,
         },
         ...(query?.referrer && {
-          referrer: query.referrer === 'Direct / None' ? null : query.referrer,
+          referrer:
+            query.referrer === 'Direct / None'
+              ? null
+              : {
+                  startsWith: query.referrer,
+                },
         }),
         ...(query?.page && { href: { contains: query.page } }),
         ...(query?.country && { country: query.country }),
