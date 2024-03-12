@@ -91,6 +91,13 @@ export class SubscriptionsService {
     const subscriptions = await this.getSubscriptions();
     const priceId = subscriptions.find((s) => s.plan === plan).priceId;
 
+    console.log('Initiating checkout session', {
+      user,
+      plan,
+      priceId,
+      discounts,
+    });
+
     const session = await this.stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
