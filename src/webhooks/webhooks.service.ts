@@ -170,6 +170,12 @@ export class WebhooksService {
         return;
       }
 
+      const product = await this.stripe.products.retrieve(
+        subscription.items.data[0].plan.product as string,
+      );
+
+      const subscriptionPlan = product.metadata['plan'] as SubscriptionPlan;
+
       await this.dbService.subscription.update({
         where: { id: subscriptionRecord.id },
         data: {
@@ -177,6 +183,7 @@ export class WebhooksService {
             .unix(subscription.cancel_at ?? subscription.current_period_end)
             .toDate(),
           cancelAtPeriodEnd: subscription.cancel_at_period_end,
+          subscriptionPlan,
         },
       });
     } catch (error) {

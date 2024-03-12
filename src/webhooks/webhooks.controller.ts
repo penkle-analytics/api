@@ -43,24 +43,40 @@ export class WebhooksController {
       return;
     }
 
-    switch (event.type) {
-      case 'customer.subscription.created':
-        await this.webhooksService.handleSubscriptionCreated(event.data.object);
-        break;
-      case 'customer.subscription.deleted':
-        await this.webhooksService.handleSubscriptionDeleted(event.data.object);
-        break;
-      case 'customer.subscription.paused':
-        await this.webhooksService.handleSubscriptionPaused(event.data.object);
-        break;
-      case 'customer.subscription.resumed':
-        await this.webhooksService.handleSubscriptionResumed(event.data.object);
-        break;
-      case 'customer.subscription.updated':
-        await this.webhooksService.handleSubscriptionUpdated(event.data.object);
-        break;
-      default:
-        console.warn(`Unhandled event type: ${event.type}`);
+    try {
+      switch (event.type) {
+        case 'customer.subscription.created':
+          await this.webhooksService.handleSubscriptionCreated(
+            event.data.object,
+          );
+          break;
+        case 'customer.subscription.deleted':
+          await this.webhooksService.handleSubscriptionDeleted(
+            event.data.object,
+          );
+          break;
+        case 'customer.subscription.paused':
+          await this.webhooksService.handleSubscriptionPaused(
+            event.data.object,
+          );
+          break;
+        case 'customer.subscription.resumed':
+          await this.webhooksService.handleSubscriptionResumed(
+            event.data.object,
+          );
+          break;
+        case 'customer.subscription.updated':
+          await this.webhooksService.handleSubscriptionUpdated(
+            event.data.object,
+          );
+          break;
+        default:
+          console.warn(`Unhandled event type: ${event.type}`);
+      }
+    } catch (error) {
+      console.error(`Error handling ${event.type}`, error);
+      res.status(500).send(`Webhook Error: ${error.message}`);
+      return;
     }
 
     // Return a 200 response to acknowledge receipt of the event
