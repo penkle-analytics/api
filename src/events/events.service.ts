@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { DbService } from 'src/db/db.service';
-import { Prisma } from '@prisma/client';
+import { EventType, Prisma } from '@prisma/client';
 import { CreateEventDto } from './dto/create-event.dto';
 import * as geoip from 'geoip-lite';
 import * as uaParser from 'ua-parser-js';
 import * as dayjs from 'dayjs';
 import { createHmac } from 'crypto';
+import { FilterEventsDto } from './dto/filter-events.dto';
 
 @Injectable()
 export class EventsService {
@@ -49,6 +50,177 @@ export class EventsService {
 
   count(data: Prisma.EventCountArgs) {
     return this.dbService.event.count(data);
+  }
+
+  async getAllEventsInPeriod(
+    name: string,
+    filters: FilterEventsDto,
+    userId?: string,
+  ) {
+    const from = dayjs(filters.date).subtract(1, filters.period).toDate();
+    const to = dayjs(filters.date).toDate();
+
+    const eventsData = await this.findAll({
+      where: {
+        domain: {
+          name,
+          ...(userId && {
+            users: {
+              some: {
+                userId,
+              },
+            },
+          }),
+        },
+        createdAt: {
+          gte: from,
+          lte: to,
+        },
+        ...(filters?.referrer && {
+          referrer:
+            filters.referrer === 'Direct / None'
+              ? null
+              : {
+                  startsWith: filters.referrer,
+                },
+        }),
+        ...(filters?.page && { href: { contains: filters.page } }),
+        ...(filters?.country && { country: filters.country }),
+        ...(filters?.os && { os: filters.os }),
+        ...(filters?.browser && { browser: filters.browser }),
+      },
+    });
+
+    const dataPoints = dayjs(to).diff(from, filters.interval) + 1;
+
+    const eventsInPeriod: {
+      date: Date;
+      views: number;
+      uniqueVisitors: number;
+    }[] = [];
+
+    for (let i = 0; i < dataPoints; i++) {
+      const date = dayjs(to).subtract(i, filters.interval).toDate();
+      const eventsForInterval = eventsData.filter((event) =>
+        dayjs(event.createdAt).isSame(date, filters.interval),
+      );
+
+      const views = eventsForInterval.filter(
+        (event) => event.type === EventType.PAGE_VIEW,
+      ).length;
+
+      // Return early if there are no events for the day
+      if (eventsForInterval.every((event) => !event.uniqueVisitorId)) {
+        eventsInPeriod.push({ date, views, uniqueVisitors: 0 });
+
+        continue;
+      }
+
+      const uniqueVisitors = new Set(
+        eventsForInterval.map((event) => event.uniqueVisitorId),
+      ).size;
+
+      eventsInPeriod.push({ date, views, uniqueVisitors });
+    }
+
+    const referrers = eventsData.reduce((acc, event) => {
+      if (event.referrer) {
+        return acc.set(
+          new URL(event.referrer).origin,
+          (acc.get(new URL(event.referrer).origin) || 0) + 1,
+        );
+      } else {
+        return acc.set('Direct / None', (acc.get('Direct / None') || 0) + 1);
+      }
+    }, new Map());
+
+    const pages = eventsData.reduce(
+      (acc, event) =>
+        acc.set(
+          new URL(event.href).pathname,
+          (acc.get(new URL(event.href).pathname) || 0) + 1,
+        ),
+      new Map(),
+    );
+
+    const countries = eventsData.reduce(
+      (acc, event) => acc.set(event.country, (acc.get(event.country) || 0) + 1),
+      new Map(),
+    );
+
+    const os = eventsData.reduce(
+      (acc, event) => acc.set(event.os, (acc.get(event.os) || 0) + 1),
+      new Map(),
+    );
+
+    const browsers = eventsData.reduce(
+      (acc, event) => acc.set(event.browser, (acc.get(event.browser) || 0) + 1),
+      new Map(),
+    );
+
+    return {
+      eventsInPeriod: eventsInPeriod.reverse(),
+      referrers: [...referrers.entries()]
+        .map(([key, value]) => ({
+          label: key,
+          value,
+        }))
+        .sort((a, b) => b.value - a.value),
+      referrersWithCount: [...referrers.entries()]
+        .map(([key, value]) => ({
+          referrer: key,
+          count: value,
+        }))
+        .sort((a, b) => b.count - a.count),
+      pages: [...pages.entries()]
+        .map(([key, value]) => ({
+          label: key,
+          value,
+        }))
+        .sort((a, b) => b.value - a.value),
+      routesWithCount: [...pages.entries()]
+        .map(([key, value]) => ({
+          route: key,
+          count: value,
+        }))
+        .sort((a, b) => b.count - a.count),
+      countries: [...countries.entries()]
+        .map(([key, value]) => ({
+          label: key,
+          value,
+        }))
+        .sort((a, b) => b.value - a.value),
+      countriesWithCount: [...countries.entries()]
+        .map(([key, value]) => ({
+          country: key,
+          count: value,
+        }))
+        .sort((a, b) => b.count - a.count),
+      os: [...os.entries()]
+        .map(([key, value]) => ({
+          label: key,
+          value,
+        }))
+        .sort((a, b) => b.value - a.value),
+      osWithCount: [...os.entries()]
+        .map(([key, value]) => ({
+          os: key,
+          count: value,
+        }))
+        .sort((a, b) => b.count - a.count),
+      browsers: [...browsers.entries()]
+        .map(([key, value]) => ({
+          label: key,
+          value,
+        }))
+        .sort((a, b) => b.value - a.value),
+      browsersWithCount: [...browsers.entries()]
+        .map(([key, value]) => ({
+          browser: key,
+          count: value,
+        }))
+        .sort((a, b) => b.count - a.count),
+    };
   }
 
   findAll(data: Prisma.EventFindManyArgs) {
