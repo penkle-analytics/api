@@ -166,60 +166,30 @@ export class EventsService {
           value,
         }))
         .sort((a, b) => b.value - a.value),
-      referrersWithCount: [...referrers.entries()]
-        .map(([key, value]) => ({
-          referrer: key,
-          count: value,
-        }))
-        .sort((a, b) => b.count - a.count),
       pages: [...pages.entries()]
         .map(([key, value]) => ({
           label: key,
           value,
         }))
         .sort((a, b) => b.value - a.value),
-      routesWithCount: [...pages.entries()]
-        .map(([key, value]) => ({
-          route: key,
-          count: value,
-        }))
-        .sort((a, b) => b.count - a.count),
       countries: [...countries.entries()]
         .map(([key, value]) => ({
           label: key,
           value,
         }))
         .sort((a, b) => b.value - a.value),
-      countriesWithCount: [...countries.entries()]
-        .map(([key, value]) => ({
-          country: key,
-          count: value,
-        }))
-        .sort((a, b) => b.count - a.count),
       os: [...os.entries()]
         .map(([key, value]) => ({
           label: key,
           value,
         }))
         .sort((a, b) => b.value - a.value),
-      osWithCount: [...os.entries()]
-        .map(([key, value]) => ({
-          os: key,
-          count: value,
-        }))
-        .sort((a, b) => b.count - a.count),
       browsers: [...browsers.entries()]
         .map(([key, value]) => ({
           label: key,
           value,
         }))
         .sort((a, b) => b.value - a.value),
-      browsersWithCount: [...browsers.entries()]
-        .map(([key, value]) => ({
-          browser: key,
-          count: value,
-        }))
-        .sort((a, b) => b.count - a.count),
     };
   }
 
