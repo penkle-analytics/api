@@ -265,9 +265,22 @@ export class GatewayController {
       },
     });
 
+    const liveViewers = await this.eventsService.count({
+      where: {
+        domain: {
+          name: 'penkle.com',
+        },
+        type: EventType.PAGE_VIEW,
+        createdAt: {
+          gte: dayjs().subtract(1, 'minute').toDate(),
+        },
+      },
+    });
+
     return {
       ...domain,
       eventsInPeriod: eventsInPeriod.reverse(),
+      liveViewers,
       countriesWithCount: Array.from(countriesWithCount)
         .map(([country, count]) => ({
           country,
@@ -415,9 +428,22 @@ export class GatewayController {
       },
     });
 
+    const liveViewers = await this.eventsService.count({
+      where: {
+        domain: {
+          name,
+        },
+        type: EventType.PAGE_VIEW,
+        createdAt: {
+          gte: dayjs().subtract(1, 'minute').toDate(),
+        },
+      },
+    });
+
     return {
       ...domain,
       eventsInPeriod: eventsInPeriod.reverse(),
+      liveViewers,
       countriesWithCount: Array.from(countriesWithCount)
         .map(([country, count]) => ({
           country,
