@@ -37,6 +37,7 @@ import { SubscriptionsService } from 'src/subscriptions/subscriptions.service';
 import { CreateBillingPortalSessionDto } from 'src/subscriptions/dto/create-billing-portal-session.dto';
 import { ChangeSubscriptionPlanDto } from 'src/subscriptions/dto/change-subscription-plan.dto';
 import { FREE_PLAN_VIEW_LIMIT, plans } from 'src/config/stripe';
+import { SessionsService } from 'src/sessions/sessions.service';
 
 declare global {
   namespace Express {
@@ -53,6 +54,7 @@ export class GatewayController {
     private readonly usersService: UsersService,
     private readonly eventsService: EventsService,
     private readonly domainsService: DomainsService,
+    private readonly sessionsService: SessionsService,
     private readonly subscriptionsService: SubscriptionsService,
     private readonly configService: ConfigService,
   ) {}
@@ -317,10 +319,16 @@ export class GatewayController {
       createEventDto,
     });
 
-    await this.eventsService.create(createEventDto, {
-      ip,
-      ua,
-    });
+    try {
+      const event = await this.eventsService.create(createEventDto, {
+        ip,
+        ua,
+      });
+
+      await this.sessionsService.handleSession(event);
+    } catch (error) {
+      console.error('Error creating event', error);
+    }
 
     return 'ok';
   }

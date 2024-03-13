@@ -11,6 +11,7 @@ import { configuration } from './config/config';
 import { DomainsModule } from './domains/domains.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { SessionsModule } from './sessions/sessions.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
     DomainsModule,
     WebhooksModule,
     SubscriptionsModule,
+    SessionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
