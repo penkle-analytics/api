@@ -486,4 +486,9 @@ export class GatewayController {
 
     return this.subscriptionsService.resubscribe(req['user'].sub);
   }
+
+  // @Get('/wow')
+  // async a() {
+  //   await this.sessionsService.calculateHistoricSessions();
+  // }
 }

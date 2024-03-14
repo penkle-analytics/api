@@ -9,17 +9,22 @@ export class SessionsService {
   constructor(private readonly dbService: DbService) {}
 
   async handleSession(event: Event) {
+    return;
     if (event.type !== EventType.PAGE_VIEW) {
       return;
     }
 
     const { uniqueVisitorId } = event;
 
+    if (!uniqueVisitorId) {
+      return;
+    }
+
     const session = await this.dbService.session.findFirst({
       where: {
         uniqueVisitorId,
         createdAt: {
-          gte: dayjs().subtract(1, 'minute').toDate(),
+          gte: dayjs(event.createdAt).subtract(30, 'minute').toDate(),
         },
       },
     });
@@ -41,6 +46,7 @@ export class SessionsService {
       await this.dbService.session.create({
         data: {
           uniqueVisitorId,
+          createdAt: event.createdAt,
           events: {
             connect: {
               id: event.id,
@@ -134,5 +140,22 @@ export class SessionsService {
     }
 
     return eventsInPeriod;
+  }
+
+  async calculateHistoricSessions() {
+    const events = await this.dbService.event.findMany({
+      where: {
+        sessionId: null,
+      },
+    });
+
+    //sort by date
+    const sortedEvents = events.sort((a, b) => {
+      return a.createdAt.getTime() - b.createdAt.getTime();
+    });
+
+    for await (const event of sortedEvents) {
+      await this.handleSession(event);
+    }
   }
 }
