@@ -140,21 +140,4 @@ export class SessionsService {
 
     return eventsInPeriod;
   }
-
-  async calculateHistoricSessions() {
-    const events = await this.dbService.event.findMany({
-      where: {
-        sessionId: null,
-      },
-    });
-
-    //sort by date
-    const sortedEvents = events.sort((a, b) => {
-      return a.createdAt.getTime() - b.createdAt.getTime();
-    });
-
-    for await (const event of sortedEvents) {
-      await this.handleSession(event);
-    }
-  }
 }
