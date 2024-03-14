@@ -120,6 +120,6 @@ model Session {
   updatedAt       DateTime @updatedAt
 
   events   Event[]
-  domain   Domain? @relation(fields: [domainId], references: [id])
-  domainId String?
+  domain   Domain  @relation(fields: [domainId], references: [id])
+  domainId String
 }

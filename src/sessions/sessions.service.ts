@@ -56,77 +56,9 @@ export class SessionsService {
     }
   }
 
-  async linkDomainWithSession() {
-    const sessions = await this.dbService.session.findMany({
-      where: {
-        domainId: null,
-      },
-      include: {
-        events: true,
-      },
-    });
-
-    for await (const session of sessions) {
-      const domainId = session.events[0].domainId;
-
-      await this.dbService.session.update({
-        where: {
-          id: session.id,
-        },
-        data: {
-          domain: {
-            connect: {
-              id: domainId,
-            },
-          },
-        },
-      });
-    }
-  }
-
   async getAllSessionsInPeriod(domainId: string, filters: FilterEventsDto) {
     const from = dayjs(filters.date).subtract(1, filters.period).toDate();
     const to = dayjs(filters.date).toDate();
-
-    // const sessions = await this.dbService.session.findMany({
-    //   where: {
-    //     domainId,
-    //     createdAt: {
-    //       gte: from,
-    //       lte: to,
-    //     },
-    //   },
-    //   include: {
-    //     events: true,
-    //   },
-    // });
-
-    // const pagesPerSession = sessions.reduce((acc, session) => {
-    //   const pageViews = session.events.filter(
-    //     (event) => event.type === EventType.PAGE_VIEW,
-    //   );
-    //   const uniquePages = new Set(pageViews.map((event) => event.href)).size;
-    //   return acc.set(session.id, uniquePages);
-    // }, new Map());
-
-    // const bounceRate =
-    //   sessions.filter((session) => {
-    //     const pageViews = session.events.filter(
-    //       (event) => event.type === EventType.PAGE_VIEW,
-    //     );
-    //     return pageViews.length === 1;
-    //   }).length / sessions.length;
-
-    // return {
-    //   sessions: sessions.length,
-    //   pagesPerSession: [...pagesPerSession.entries()]
-    //     .map(([key, value]) => ({
-    //       sessionId: key,
-    //       value,
-    //     }))
-    //     .sort((a, b) => b.value - a.value),
-    //   bounceRate,
-    // };
 
     const sessionsInPeriod = await this.dbService.session.findMany({
       where: {
