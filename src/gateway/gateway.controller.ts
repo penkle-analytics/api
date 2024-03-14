@@ -175,7 +175,7 @@ export class GatewayController {
       },
     });
 
-    const eventsInPeriod = await this.eventsService.getAllEventsInPeriod(
+    const eventsDataInPeriod = await this.eventsService.getAllEventsInPeriod(
       name,
       query,
     );
@@ -192,9 +192,36 @@ export class GatewayController {
       },
     });
 
+    const sessionsInPeriod = await this.sessionsService.getAllSessionsInPeriod(
+      domain.id,
+      query,
+    );
+
+    const { eventsInPeriod } = eventsDataInPeriod;
+
+    const chartData = eventsInPeriod.map((event) => {
+      const session = sessionsInPeriod.find(({ date }) =>
+        dayjs(date).isSame(dayjs(event.date), query.interval),
+      );
+
+      if (!session) {
+        console.warn('No session found for date', event.date);
+      }
+
+      delete session.date;
+
+      return {
+        date: event.date,
+        views: event.views,
+        uniqueVisitors: event.uniqueVisitors,
+        ...session,
+      };
+    });
+
     return {
       ...domain,
-      ...eventsInPeriod,
+      ...eventsDataInPeriod,
+      eventsInPeriod: chartData,
       liveViewers,
     };
   }
@@ -218,7 +245,7 @@ export class GatewayController {
       },
     });
 
-    const eventsInPeriod = await this.eventsService.getAllEventsInPeriod(
+    const eventsDataInPeriod = await this.eventsService.getAllEventsInPeriod(
       name,
       query,
       req['user'].sub,
@@ -236,9 +263,36 @@ export class GatewayController {
       },
     });
 
+    const sessionsInPeriod = await this.sessionsService.getAllSessionsInPeriod(
+      domain.id,
+      query,
+    );
+
+    const { eventsInPeriod } = eventsDataInPeriod;
+
+    const chartData = eventsInPeriod.map((event) => {
+      const session = sessionsInPeriod.find(({ date }) =>
+        dayjs(date).isSame(dayjs(event.date), query.interval),
+      );
+
+      if (!session) {
+        console.warn('No session found for date', event.date);
+      }
+
+      delete session.date;
+
+      return {
+        date: event.date,
+        views: event.views,
+        uniqueVisitors: event.uniqueVisitors,
+        ...session,
+      };
+    });
+
     return {
       ...domain,
-      ...eventsInPeriod,
+      ...eventsDataInPeriod,
+      eventsInPeriod: chartData,
       liveViewers,
     };
   }
@@ -432,4 +486,9 @@ export class GatewayController {
 
     return this.subscriptionsService.resubscribe(req['user'].sub);
   }
+
+  // @Get('/wow')
+  // async a() {
+  //   await this.sessionsService.linkDomainWithSession();
+  // }
 }

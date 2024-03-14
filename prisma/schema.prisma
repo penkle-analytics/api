@@ -83,8 +83,9 @@ model Domain {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  events Event[]
-  users  UserDomain[]
+  events   Event[]
+  users    UserDomain[]
+  sessions Session[]
 }
 
 enum EventType {
@@ -118,5 +119,7 @@ model Session {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  events Event[]
+  events   Event[]
+  domain   Domain? @relation(fields: [domainId], references: [id])
+  domainId String?
 }
