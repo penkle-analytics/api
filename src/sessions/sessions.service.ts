@@ -9,7 +9,6 @@ export class SessionsService {
   constructor(private readonly dbService: DbService) {}
 
   async handleSession(event: Event) {
-    return;
     if (event.type !== EventType.PAGE_VIEW) {
       return;
     }
