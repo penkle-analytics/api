@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { DbService } from 'src/db/db.service';
 import { EventType, Prisma } from '@prisma/client';
 import { CreateEventDto } from './dto/create-event.dto';
@@ -7,10 +7,16 @@ import * as uaParser from 'ua-parser-js';
 import * as dayjs from 'dayjs';
 import { createHmac } from 'crypto';
 import { FilterEventsDto } from './dto/filter-events.dto';
+import { DbAsyncProvider, Db } from 'src/db/db.provider';
+import { and, eq, gte, isNotNull, lte } from 'drizzle-orm';
+import { domain } from 'src/db/schema';
 
 @Injectable()
 export class EventsService {
-  constructor(private readonly dbService: DbService) {}
+  constructor(
+    private readonly dbService: DbService,
+    @Inject(DbAsyncProvider) private readonly db: Db,
+  ) {}
 
   create(
     createEventDto: CreateEventDto,
@@ -59,6 +65,36 @@ export class EventsService {
   ) {
     const from = dayjs(filters.date).subtract(1, filters.period).toDate();
     const to = dayjs(filters.date).toDate();
+
+    const domainRecord = await this.db.query.domain.findFirst({
+      where: () => eq(domain.name, name),
+    });
+
+    const eventsWithSessionForPeriod = await this.db.query.event.findMany({
+      columns: {
+        id: true,
+        createdAt: true,
+        sessionId: true,
+      },
+      where: (fields) => {
+        return and(
+          // Old records did not track uniqueVisitorId,
+          // hence why the session can be null
+          isNotNull(fields.sessionId),
+          eq(fields.domainId, domainRecord.id),
+          gte(fields.createdAt, from.toISOString()),
+          lte(fields.createdAt, to.toISOString()),
+          filters?.referrer &&
+            (filters.referrer === 'Direct / None'
+              ? eq(fields.referrer, null)
+              : eq(fields.referrer, filters.referrer)),
+          filters?.page && eq(fields.href, filters.page),
+          filters?.country && eq(fields.country, filters.country),
+          filters?.os && eq(fields.os, filters.os),
+          filters?.browser && eq(fields.browser, filters.browser),
+        );
+      },
+    });
 
     const eventsData = await this.findAll({
       where: {

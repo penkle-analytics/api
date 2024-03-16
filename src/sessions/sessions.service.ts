@@ -1,62 +1,66 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { Event, EventType } from '@prisma/client';
 import * as dayjs from 'dayjs';
-import { DbService } from 'src/db/db.service';
+import { and, eq, gte, isNotNull, lte } from 'drizzle-orm';
+import { DbAsyncProvider, Db } from 'src/db/db.provider';
+import { event, session } from 'src/db/schema';
 import { FilterEventsDto } from 'src/events/dto/filter-events.dto';
 
 @Injectable()
 export class SessionsService {
-  constructor(private readonly dbService: DbService) {}
+  constructor(@Inject(DbAsyncProvider) private readonly db: Db) {}
 
-  async handleSession(event: Event) {
-    if (event.type !== EventType.PAGE_VIEW) {
+  async handleSession({
+    id,
+    type,
+    uniqueVisitorId,
+    createdAt,
+    domainId,
+  }: Event) {
+    if (type !== EventType.PAGE_VIEW || !uniqueVisitorId) {
       return;
     }
 
-    const { uniqueVisitorId } = event;
-
-    if (!uniqueVisitorId) {
-      return;
-    }
-
-    const session = await this.dbService.session.findFirst({
-      where: {
-        uniqueVisitorId,
-        createdAt: {
-          gte: dayjs(event.createdAt).subtract(30, 'minute').toDate(),
-        },
+    const sessionRecord = await this.db.query.session.findFirst({
+      where: (fields) => {
+        return and(
+          eq(fields.uniqueVisitorId, uniqueVisitorId),
+          gte(
+            fields.createdAt,
+            dayjs(createdAt).subtract(30, 'minute').toISOString(),
+          ),
+        );
       },
     });
 
-    if (session) {
-      await this.dbService.session.update({
-        where: {
-          id: session.id,
-        },
-        data: {
-          events: {
-            connect: {
-              id: event.id,
-            },
-          },
-        },
-      });
+    if (sessionRecord) {
+      await this.db
+        .update(event)
+        .set({
+          sessionId: sessionRecord.id,
+          updatedAt: dayjs().toISOString(),
+        })
+        .where(eq(event.id, id));
     } else {
-      await this.dbService.session.create({
-        data: {
-          uniqueVisitorId,
-          createdAt: event.createdAt,
-          events: {
-            connect: {
-              id: event.id,
-            },
-          },
-          domain: {
-            connect: {
-              id: event.domainId,
-            },
-          },
-        },
+      await this.db.transaction(async (tx) => {
+        const [{ id: sessionId }] = await tx
+          .insert(session)
+          .values({
+            uniqueVisitorId,
+            createdAt: dayjs(createdAt).toISOString(),
+            updatedAt: dayjs().toISOString(),
+            domainId,
+          })
+          .returning({
+            id: session.id,
+          });
+
+        tx.update(event)
+          .set({
+            sessionId,
+            updatedAt: dayjs().toISOString(),
+          })
+          .where(eq(event.id, id));
       });
     }
   }
@@ -65,37 +69,55 @@ export class SessionsService {
     const from = dayjs(filters.date).subtract(1, filters.period).toDate();
     const to = dayjs(filters.date).toDate();
 
-    const sessionsInPeriod = await this.dbService.session.findMany({
-      where: {
-        domainId,
-        createdAt: {
-          gte: from,
-          lte: to,
-        },
-        events: {
-          some: {
-            type: EventType.PAGE_VIEW,
-            ...(filters?.referrer && {
-              referrer:
-                filters.referrer === 'Direct / None'
-                  ? null
-                  : {
-                      startsWith: filters.referrer,
-                    },
-            }),
-            ...(filters?.page && { href: { contains: filters.page } }),
-            ...(filters?.country && { country: filters.country }),
-            ...(filters?.os && { os: filters.os }),
-            ...(filters?.browser && { browser: filters.browser }),
+    const eventsWithSessionForPeriod = await this.db.query.event.findMany({
+      columns: {
+        id: true,
+        createdAt: true,
+        sessionId: true,
+      },
+      where: (fields) => {
+        return and(
+          // Old records did not track uniqueVisitorId,
+          // hence why the session can be null
+          isNotNull(fields.sessionId),
+          eq(fields.domainId, domainId),
+          gte(fields.createdAt, from.toISOString()),
+          lte(fields.createdAt, to.toISOString()),
+          filters?.referrer &&
+            (filters.referrer === 'Direct / None'
+              ? eq(fields.referrer, null)
+              : eq(fields.referrer, filters.referrer)),
+          filters?.page && eq(fields.href, filters.page),
+          filters?.country && eq(fields.country, filters.country),
+          filters?.os && eq(fields.os, filters.os),
+          filters?.browser && eq(fields.browser, filters.browser),
+        );
+      },
+      with: {
+        session: {
+          columns: {
+            id: true,
+            createdAt: true,
           },
         },
       },
-      include: {
-        events: true,
-      },
     });
 
-    const dataPoints = dayjs(to).diff(from, filters.interval) + 1;
+    const sessionsForSelectedPeriod = eventsWithSessionForPeriod.reduce(
+      (acc, event) => {
+        if (acc.every((session) => session.id !== event.session.id)) {
+          acc.push(event.session);
+        }
+
+        return acc;
+      },
+      [] as {
+        id: string;
+        createdAt: string;
+      }[],
+    );
+
+    const dataPoints = dayjs(to).diff(from, filters.interval);
 
     const eventsInPeriod: {
       date: Date;
@@ -106,17 +128,11 @@ export class SessionsService {
 
     for (let i = 0; i < dataPoints; i++) {
       const date = dayjs(to).subtract(i, filters.interval).toDate();
-      const sessionsForInterval = sessionsInPeriod.filter((session) =>
+      const sessionsForInterval = sessionsForSelectedPeriod.filter((session) =>
         dayjs(session.createdAt).isSame(date, filters.interval),
       );
 
-      const views = sessionsForInterval.reduce(
-        (acc, session) =>
-          acc +
-          session.events.filter((event) => event.type === EventType.PAGE_VIEW)
-            .length,
-        0,
-      );
+      const views = eventsWithSessionForPeriod.length;
 
       const sessions = sessionsForInterval.length;
 
@@ -126,13 +142,17 @@ export class SessionsService {
       if (sessions > 0) {
         viewsPerSession = views / sessions;
 
+        const sessionsWithMoreThanOneEvent = sessionsForInterval.filter(
+          (session) =>
+            eventsWithSessionForPeriod.filter(
+              (event) =>
+                dayjs(event.createdAt).isSame(date, filters.interval) &&
+                event.sessionId === session.id,
+            ).length > 1,
+        );
+
         bounceRate =
-          sessionsForInterval.filter((session) => {
-            const pageViews = session.events.filter(
-              (event) => event.type === EventType.PAGE_VIEW,
-            );
-            return pageViews.length === 1;
-          }).length / sessions;
+          (sessions - sessionsWithMoreThanOneEvent.length) / sessions;
       }
 
       eventsInPeriod.push({ date, sessions, viewsPerSession, bounceRate });
