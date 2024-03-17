@@ -187,6 +187,64 @@ export class GatewayController {
     };
   }
 
+  @Get('/domains/demo/live-visitors')
+  async getDemoLiveVisitors() {
+    const name = 'penkle.com';
+
+    const domain = await this.domainsService.findUnique({
+      where: {
+        name,
+      },
+    });
+
+    if (!domain) {
+      throw new NotFoundException('Domain not found');
+    }
+
+    const liveVisitors = await this.eventsService.getLiveVisitors(domain.id);
+
+    return {
+      liveVisitors,
+    };
+  }
+
+  @Get('/domains/demo/:type')
+  async getDemoDomainInfo(
+    @Param('type') type: string,
+    @Query() query: FilterEventsDto,
+  ) {
+    const name = 'penkle.com';
+
+    query.period ||= 'week';
+    query.interval ||= 'day';
+    query.date ||= dayjs().toISOString();
+
+    const domain = await this.domainsService.findUnique({
+      where: {
+        name,
+      },
+    });
+
+    if (!domain) {
+      throw new NotFoundException('Domain not found');
+    }
+
+    switch (type) {
+      case 'referrers':
+        return this.eventsService.getAllReferrersInPeriod(domain.id, query);
+      case 'pages':
+        return this.eventsService.getAllPagesInPeriod(domain.id, query);
+      case 'countries':
+        return this.eventsService.getAllCountriesInPeriod(domain.id, query);
+      case 'os':
+        return this.eventsService.getAllOsInPeriod(domain.id, query);
+      case 'browsers':
+        return this.eventsService.getAllBrowsersInPeriod(domain.id, query);
+      default:
+        throw new BadRequestException('Invalid type');
+    }
+  }
+
   @UseGuards(AuthGuard)
   @Get('/domains/:name')
   async findOneDomain(
