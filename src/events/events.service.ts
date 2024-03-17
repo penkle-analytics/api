@@ -7,6 +7,8 @@ import * as uaParser from 'ua-parser-js';
 import * as dayjs from 'dayjs';
 import { createHmac } from 'crypto';
 import { FilterEventsDto } from './dto/filter-events.dto';
+import { SessionsService } from 'src/sessions/sessions.service';
+import { objectKeys } from 'src/utils/object-keys';
 
 @Injectable()
 export class EventsService {
@@ -52,25 +54,15 @@ export class EventsService {
     return this.dbService.event.count(data);
   }
 
-  async getAllEventsInPeriod(
-    name: string,
-    filters: FilterEventsDto,
-    userId?: string,
-  ) {
+  async getAllEventsInPeriod(domainId: string, filters: FilterEventsDto) {
     const from = dayjs(filters.date).subtract(1, filters.period).toDate();
     const to = dayjs(filters.date).toDate();
 
     const eventsData = await this.findAll({
       where: {
-        domain: {
-          name,
-          ...(userId && {
-            users: {
-              some: {
-                userId,
-              },
-            },
-          }),
+        domainId,
+        sessionId: {
+          not: null,
         },
         createdAt: {
           gte: from,
@@ -97,6 +89,9 @@ export class EventsService {
       date: Date;
       views: number;
       uniqueVisitors: number;
+      sessions: number;
+      viewsPerSession: number;
+      bounceRate: number;
     }[] = [];
 
     for (let i = 0; i < dataPoints; i++) {
@@ -105,25 +100,82 @@ export class EventsService {
         dayjs(event.createdAt).isSame(date, filters.interval),
       );
 
+      let sessionEventCount: Record<string, number> = {};
+
+      for (let i = 0; i < eventsForInterval.length; i++) {
+        const id = eventsForInterval[i].sessionId;
+        const count = sessionEventCount[id] || 0;
+
+        sessionEventCount[id] = count + 1;
+      }
+
+      const sessions = new Set(
+        eventsForInterval.map((event) => event.sessionId),
+      ).size;
+
       const views = eventsForInterval.filter(
         (event) => event.type === EventType.PAGE_VIEW,
       ).length;
 
-      // Return early if there are no events for the day
-      if (eventsForInterval.every((event) => !event.uniqueVisitorId)) {
-        eventsInPeriod.push({ date, views, uniqueVisitors: 0 });
+      let viewsPerSession = 0;
+      let bounceRate = 0;
 
-        continue;
+      if (sessions > 0 && views > 0) {
+        viewsPerSession = views / sessions;
+
+        bounceRate =
+          objectKeys(sessionEventCount).filter(
+            (key) => sessionEventCount[key] === 1,
+          ).length / sessions;
       }
 
-      const uniqueVisitors = new Set(
-        eventsForInterval.map((event) => event.uniqueVisitorId),
-      ).size;
+      let uniqueVisitors = 0;
 
-      eventsInPeriod.push({ date, views, uniqueVisitors });
+      if (eventsForInterval.some((event) => event.uniqueVisitorId)) {
+        uniqueVisitors = new Set(
+          eventsForInterval.map((event) => event.uniqueVisitorId),
+        ).size;
+      }
+
+      eventsInPeriod.push({
+        date,
+        views,
+        uniqueVisitors,
+        sessions,
+        viewsPerSession,
+        bounceRate,
+      });
     }
 
-    const referrers = eventsData.reduce((acc, event) => {
+    return eventsInPeriod.reverse();
+  }
+
+  async getAllReferrersInPeriod(domainId: string, filters: FilterEventsDto) {
+    const events = await this.dbService.event.findMany({
+      where: {
+        domain: {
+          id: domainId,
+        },
+        createdAt: {
+          gte: dayjs(filters.date).subtract(1, filters.period).toDate(),
+          lte: dayjs(filters.date).toDate(),
+        },
+        ...(filters?.referrer && {
+          referrer:
+            filters.referrer === 'Direct / None'
+              ? null
+              : {
+                  startsWith: filters.referrer,
+                },
+        }),
+        ...(filters?.page && { href: { contains: filters.page } }),
+        ...(filters?.country && { country: filters.country }),
+        ...(filters?.os && { os: filters.os }),
+        ...(filters?.browser && { browser: filters.browser }),
+      },
+    });
+
+    const referrers = events.reduce((acc, event) => {
       if (event.referrer) {
         return acc.set(
           new URL(event.referrer).origin,
@@ -134,7 +186,40 @@ export class EventsService {
       }
     }, new Map());
 
-    const pages = eventsData.reduce(
+    return [...referrers.entries()]
+      .map(([key, value]) => ({
+        label: key,
+        value,
+      }))
+      .sort((a, b) => b.value - a.value);
+  }
+
+  async getAllPagesInPeriod(domainId: string, filters: FilterEventsDto) {
+    const events = await this.dbService.event.findMany({
+      where: {
+        domain: {
+          id: domainId,
+        },
+        createdAt: {
+          gte: dayjs(filters.date).subtract(1, filters.period).toDate(),
+          lte: dayjs(filters.date).toDate(),
+        },
+        ...(filters?.referrer && {
+          referrer:
+            filters.referrer === 'Direct / None'
+              ? null
+              : {
+                  startsWith: filters.referrer,
+                },
+        }),
+        ...(filters?.page && { href: { contains: filters.page } }),
+        ...(filters?.country && { country: filters.country }),
+        ...(filters?.os && { os: filters.os }),
+        ...(filters?.browser && { browser: filters.browser }),
+      },
+    });
+
+    const pages = events.reduce(
       (acc, event) =>
         acc.set(
           new URL(event.href).pathname,
@@ -143,54 +228,139 @@ export class EventsService {
       new Map(),
     );
 
-    const countries = eventsData.reduce(
+    return [...pages.entries()]
+      .map(([key, value]) => ({
+        label: key,
+        value,
+      }))
+      .sort((a, b) => b.value - a.value);
+  }
+
+  async getAllCountriesInPeriod(domainId: string, filters: FilterEventsDto) {
+    const events = await this.dbService.event.findMany({
+      where: {
+        domain: {
+          id: domainId,
+        },
+        createdAt: {
+          gte: dayjs(filters.date).subtract(1, filters.period).toDate(),
+          lte: dayjs(filters.date).toDate(),
+        },
+        ...(filters?.referrer && {
+          referrer:
+            filters.referrer === 'Direct / None'
+              ? null
+              : {
+                  startsWith: filters.referrer,
+                },
+        }),
+        ...(filters?.page && { href: { contains: filters.page } }),
+        ...(filters?.country && { country: filters.country }),
+        ...(filters?.os && { os: filters.os }),
+        ...(filters?.browser && { browser: filters.browser }),
+      },
+    });
+
+    const countries = events.reduce(
       (acc, event) => acc.set(event.country, (acc.get(event.country) || 0) + 1),
       new Map(),
     );
 
-    const os = eventsData.reduce(
+    return [...countries.entries()]
+      .map(([key, value]) => ({
+        label: key,
+        value,
+      }))
+      .sort((a, b) => b.value - a.value);
+  }
+
+  async getAllOsInPeriod(domainId: string, filters: FilterEventsDto) {
+    const events = await this.dbService.event.findMany({
+      where: {
+        domain: {
+          id: domainId,
+        },
+        createdAt: {
+          gte: dayjs(filters.date).subtract(1, filters.period).toDate(),
+          lte: dayjs(filters.date).toDate(),
+        },
+        ...(filters?.referrer && {
+          referrer:
+            filters.referrer === 'Direct / None'
+              ? null
+              : {
+                  startsWith: filters.referrer,
+                },
+        }),
+        ...(filters?.page && { href: { contains: filters.page } }),
+        ...(filters?.country && { country: filters.country }),
+        ...(filters?.os && { os: filters.os }),
+        ...(filters?.browser && { browser: filters.browser }),
+      },
+    });
+
+    const os = events.reduce(
       (acc, event) => acc.set(event.os, (acc.get(event.os) || 0) + 1),
       new Map(),
     );
 
-    const browsers = eventsData.reduce(
+    return [...os.entries()]
+      .map(([key, value]) => ({
+        label: key,
+        value,
+      }))
+      .sort((a, b) => b.value - a.value);
+  }
+
+  async getAllBrowsersInPeriod(domainId: string, filters: FilterEventsDto) {
+    const events = await this.dbService.event.findMany({
+      where: {
+        domain: {
+          id: domainId,
+        },
+        createdAt: {
+          gte: dayjs(filters.date).subtract(1, filters.period).toDate(),
+          lte: dayjs(filters.date).toDate(),
+        },
+        ...(filters?.referrer && {
+          referrer:
+            filters.referrer === 'Direct / None'
+              ? null
+              : {
+                  startsWith: filters.referrer,
+                },
+        }),
+        ...(filters?.page && { href: { contains: filters.page } }),
+        ...(filters?.country && { country: filters.country }),
+        ...(filters?.os && { os: filters.os }),
+        ...(filters?.browser && { browser: filters.browser }),
+      },
+    });
+
+    const browsers = events.reduce(
       (acc, event) => acc.set(event.browser, (acc.get(event.browser) || 0) + 1),
       new Map(),
     );
 
-    return {
-      eventsInPeriod: eventsInPeriod.reverse(),
-      referrers: [...referrers.entries()]
-        .map(([key, value]) => ({
-          label: key,
-          value,
-        }))
-        .sort((a, b) => b.value - a.value),
-      pages: [...pages.entries()]
-        .map(([key, value]) => ({
-          label: key,
-          value,
-        }))
-        .sort((a, b) => b.value - a.value),
-      countries: [...countries.entries()]
-        .map(([key, value]) => ({
-          label: key,
-          value,
-        }))
-        .sort((a, b) => b.value - a.value),
-      os: [...os.entries()]
-        .map(([key, value]) => ({
-          label: key,
-          value,
-        }))
-        .sort((a, b) => b.value - a.value),
-      browsers: [...browsers.entries()]
-        .map(([key, value]) => ({
-          label: key,
-          value,
-        }))
-        .sort((a, b) => b.value - a.value),
-    };
+    return [...browsers.entries()]
+      .map(([key, value]) => ({
+        label: key,
+        value,
+      }))
+      .sort((a, b) => b.value - a.value);
+  }
+
+  getLiveVisitors(domainId: string) {
+    return this.dbService.event.count({
+      where: {
+        domain: {
+          id: domainId,
+        },
+        createdAt: {
+          gte: dayjs().subtract(1, 'minute').toDate(),
+        },
+      },
+    });
   }
 
   findAll(data: Prisma.EventFindManyArgs) {

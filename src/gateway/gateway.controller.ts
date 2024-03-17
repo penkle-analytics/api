@@ -170,59 +170,20 @@ export class GatewayController {
     query.date ||= dayjs().toISOString();
 
     const domain = await this.domainsService.findUnique({
+      // TODO: Make sure this only returns the domain if it belongs to the user
       where: {
         name,
       },
     });
 
-    const eventsDataInPeriod = await this.eventsService.getAllEventsInPeriod(
-      name,
-      query,
-    );
-
-    const liveViewers = await this.eventsService.count({
-      where: {
-        domain: {
-          name,
-        },
-        type: EventType.PAGE_VIEW,
-        createdAt: {
-          gte: dayjs().subtract(1, 'minute').toDate(),
-        },
-      },
-    });
-
-    const sessionsInPeriod = await this.sessionsService.getAllSessionsInPeriod(
+    const eventsInPeriod = await this.eventsService.getAllEventsInPeriod(
       domain.id,
       query,
     );
 
-    const { eventsInPeriod } = eventsDataInPeriod;
-
-    const chartData = eventsInPeriod.map((event) => {
-      const session = sessionsInPeriod.find(({ date }) =>
-        dayjs(date).isSame(dayjs(event.date), query.interval),
-      );
-
-      if (!session) {
-        console.warn('No session found for date', event.date);
-      }
-
-      delete session.date;
-
-      return {
-        date: event.date,
-        views: event.views,
-        uniqueVisitors: event.uniqueVisitors,
-        ...session,
-      };
-    });
-
     return {
       ...domain,
-      ...eventsDataInPeriod,
-      eventsInPeriod: chartData,
-      liveViewers,
+      eventsInPeriod,
     };
   }
 
@@ -245,56 +206,80 @@ export class GatewayController {
       },
     });
 
-    const eventsDataInPeriod = await this.eventsService.getAllEventsInPeriod(
-      name,
-      query,
-      req['user'].sub,
-    );
-
-    const liveViewers = await this.eventsService.count({
-      where: {
-        domain: {
-          name,
-        },
-        type: EventType.PAGE_VIEW,
-        createdAt: {
-          gte: dayjs().subtract(1, 'minute').toDate(),
-        },
-      },
-    });
-
-    const sessionsInPeriod = await this.sessionsService.getAllSessionsInPeriod(
+    const eventsInPeriod = await this.eventsService.getAllEventsInPeriod(
       domain.id,
       query,
     );
 
-    const { eventsInPeriod } = eventsDataInPeriod;
-
-    const chartData = eventsInPeriod.map((event) => {
-      const session = sessionsInPeriod.find(({ date }) =>
-        dayjs(date).isSame(dayjs(event.date), query.interval),
-      );
-
-      if (!session) {
-        console.warn('No session found for date', event.date);
-      }
-
-      delete session.date;
-
-      return {
-        date: event.date,
-        views: event.views,
-        uniqueVisitors: event.uniqueVisitors,
-        ...session,
-      };
-    });
-
     return {
       ...domain,
-      ...eventsDataInPeriod,
-      eventsInPeriod: chartData,
-      liveViewers,
+      eventsInPeriod,
     };
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('/domains/:name/live-visitors')
+  async getLiveVisitors(@Req() req: Request, @Param('name') name: string) {
+    const userDomains = await this.domainsService.getUserDomainsByUserId(
+      req['user'].sub,
+    );
+
+    const domain = userDomains.find((d) => d.domain.name === name);
+
+    if (!domain) {
+      throw new NotFoundException('Domain not found');
+    }
+
+    const liveVisitors = await this.eventsService.getLiveVisitors(
+      domain.domain.id,
+    );
+
+    return {
+      liveVisitors,
+    };
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('/domains/:name/:type')
+  async getDomainInfo(
+    @Req() req: Request,
+    @Param('name') name: string,
+    @Param('type') type: string,
+    @Query() query: FilterEventsDto,
+  ) {
+    query.period ||= 'week';
+    query.interval ||= 'day';
+    query.date ||= dayjs().toISOString();
+
+    const domain = await this.domainsService.findUnique({
+      where: {
+        name,
+        users: {
+          some: {
+            userId: req['user'].sub,
+          },
+        },
+      },
+    });
+
+    if (!domain) {
+      throw new NotFoundException('Domain not found');
+    }
+
+    switch (type) {
+      case 'referrers':
+        return this.eventsService.getAllReferrersInPeriod(domain.id, query);
+      case 'pages':
+        return this.eventsService.getAllPagesInPeriod(domain.id, query);
+      case 'countries':
+        return this.eventsService.getAllCountriesInPeriod(domain.id, query);
+      case 'os':
+        return this.eventsService.getAllOsInPeriod(domain.id, query);
+      case 'browsers':
+        return this.eventsService.getAllBrowsersInPeriod(domain.id, query);
+      default:
+        throw new BadRequestException('Invalid type');
+    }
   }
 
   @Post('/events')

@@ -20,6 +20,17 @@ export class DomainsService {
     });
   }
 
+  getUserDomainsByUserId(userId: string) {
+    return this.dbService.userDomain.findMany({
+      where: {
+        userId,
+      },
+      include: {
+        domain: true,
+      },
+    });
+  }
+
   findAll(data: Prisma.DomainFindManyArgs) {
     return this.dbService.domain.findMany(data);
   }
