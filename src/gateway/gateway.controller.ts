@@ -66,6 +66,13 @@ export class GatewayController {
       where: { id: req['user'].sub },
     });
 
+    await this.usersService.update({
+      where: { id: req['user'].sub },
+      data: {
+        lastSeenAt: dayjs().toDate(),
+      },
+    });
+
     return user;
   }
 

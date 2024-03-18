@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["relationJoins"]
@@ -14,47 +8,32 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum SubscriptionPlan {
-  DEVELOPER
-  HOBBYIST
-  INDIE
-  STARTUP
-}
-
-enum SubscriptionStatus {
-  ACTIVE
-  TRIALING
-  PAUSED
-  CANCELLED
-}
-
 model Subscription {
   id                 String             @id @default(cuid())
   subscriptionId     String             @unique
-  customerId         String             @unique
-  productId          String             @unique
   subscriptionPlan   SubscriptionPlan
   subscriptionStatus SubscriptionStatus
-  periodEndsAt       DateTime
-  cancelAtPeriodEnd  Boolean            @default(false)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
-
-  user   User   @relation(fields: [userId], references: [id])
-  userId String @unique
+  userId             String             @unique
+  customerId         String             @unique
+  productId          String             @unique
+  periodEndsAt       DateTime
+  cancelAtPeriodEnd  Boolean            @default(false)
+  user               User               @relation(fields: [userId], references: [id])
 }
 
 model User {
-  id        String   @id @default(cuid())
-  firstName String
-  lastName  String
-  email     String   @unique
-  password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  domains      UserDomain[]
+  id           String        @id @default(cuid())
+  firstName    String
+  lastName     String
+  email        String        @unique
+  password     String
+  lastSeenAt   DateTime      @default(now())
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
   subscription Subscription?
+  domains      UserDomain[]
 }
 
 model WaitlistUser {
@@ -68,50 +47,40 @@ model UserDomain {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  user     User   @relation(fields: [userId], references: [id])
-  userId   String
-  domain   Domain @relation(fields: [domainId], references: [id])
-  domainId String
+  userId    String
+  domainId  String
+  domain    Domain   @relation(fields: [domainId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, domainId])
 }
 
 model Domain {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  // reportingTimezone String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  events   Event[]
-  users    UserDomain[]
-  sessions Session[]
-}
-
-enum EventType {
-  PAGE_VIEW
-  // CUSTOM_EVENT
+  id        String       @id @default(cuid())
+  name      String       @unique
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  events    Event[]
+  sessions  Session[]
+  users     UserDomain[]
 }
 
 model Event {
   id              String    @id @default(cuid())
   type            EventType
-  // name      String?
-  uniqueVisitorId String?
   href            String
   referrer        String?
   country         String
-  countryCode     String
   browser         String
   os              String
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
-
-  domain    Domain   @relation(fields: [domainId], references: [id])
-  domainId  String
-  session   Session? @relation(fields: [sessionId], references: [id])
-  sessionId String?
+  domainId        String
+  countryCode     String
+  uniqueVisitorId String?
+  sessionId       String?
+  domain          Domain    @relation(fields: [domainId], references: [id])
+  session         Session?  @relation(fields: [sessionId], references: [id])
 }
 
 model Session {
@@ -119,8 +88,25 @@ model Session {
   uniqueVisitorId String
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  domainId        String
+  events          Event[]
+  domain          Domain   @relation(fields: [domainId], references: [id])
+}
 
-  events   Event[]
-  domain   Domain  @relation(fields: [domainId], references: [id])
-  domainId String
+enum SubscriptionPlan {
+  DEVELOPER
+  HOBBYIST
+  INDIE
+  STARTUP
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  CANCELLED
+  PAUSED
+}
+
+enum EventType {
+  PAGE_VIEW
 }
