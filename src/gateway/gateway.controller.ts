@@ -129,10 +129,52 @@ export class GatewayController {
   }
 
   @HttpCode(HttpStatus.OK)
+  @Post('/auth/forgot')
+  async forgot(@Body() body: { email: string }) {
+    await this.authService.forgot(body.email);
+
+    return {
+      status: 'ok',
+    };
+  }
+
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard)
   @Post('/auth/reset')
-  async reset(@Req() req: Request, @Body() body: ResetDto) {
-    return this.authService.reset(req.user.sub, body);
+  async reset(
+    @Res({ passthrough: true }) response: Response,
+    @Req() req: Request,
+    @Body() body: ResetDto,
+  ) {
+    const authEntity = await this.authService.reset(req.user.sub, body);
+
+    if (!authEntity) {
+      return null;
+    }
+
+    const isProd = this.configService.get<string>('NODE_ENV') === 'production';
+
+    response.cookie('penkle-token', authEntity.accessToken, {
+      httpOnly: true,
+      secure: isProd,
+      domain: isProd ? '.penkle.com' : undefined,
+      sameSite: isProd ? 'none' : 'lax',
+      path: '/',
+      expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7), // 7 days
+    });
+
+    return { accessToken: authEntity.accessToken };
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard)
+  @Post('/auth/logout')
+  async logout(@Res({ passthrough: true }) response: Response) {
+    response.clearCookie('penkle-token');
+
+    return {
+      status: 'ok',
+    };
   }
 
   @HttpCode(HttpStatus.OK)

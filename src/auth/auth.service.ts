@@ -14,7 +14,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async login({ email, password }: LoginDto): Promise<AuthEntity> {
+  async login({ email, password }: LoginDto) {
     const user = await this.usersService.findUnique({
       where: { email },
     });
@@ -34,11 +34,7 @@ export class AuthService {
     return null;
   }
 
-  async signup({
-    password,
-    confirmPassword,
-    ...rest
-  }: SignupDto): Promise<AuthEntity> {
+  async signup({ password, confirmPassword, ...rest }: SignupDto) {
     if (password !== confirmPassword) {
       return null;
     }
@@ -55,6 +51,26 @@ export class AuthService {
         accessToken: this.jwtService.sign(payload),
       };
     }
+
+    return null;
+  }
+
+  async forgot(email: string) {
+    const user = await this.usersService.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      return null;
+    }
+
+    const payload = { sub: user.id, email: user.email };
+
+    console.log(
+      `Send an email to ${
+        user.email
+      } with the following token: ${this.jwtService.sign(payload)}`,
+    );
 
     return null;
   }
@@ -80,6 +96,10 @@ export class AuthService {
       data: { password: await argon2.hash(password) },
     });
 
-    return null;
+    const payload = { sub: user.id, email: user.email };
+
+    return {
+      accessToken: this.jwtService.sign(payload),
+    };
   }
 }

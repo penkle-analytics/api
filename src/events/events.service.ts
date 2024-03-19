@@ -7,7 +7,6 @@ import * as uaParser from 'ua-parser-js';
 import * as dayjs from 'dayjs';
 import { createHmac } from 'crypto';
 import { FilterEventsDto } from './dto/filter-events.dto';
-import { SessionsService } from 'src/sessions/sessions.service';
 import { objectKeys } from 'src/utils/object-keys';
 
 @Injectable()
@@ -176,14 +175,16 @@ export class EventsService {
     });
 
     const referrers = events.reduce((acc, event) => {
-      if (event.referrer) {
-        return acc.set(
-          new URL(event.referrer).origin,
-          (acc.get(new URL(event.referrer).origin) || 0) + 1,
-        );
-      } else {
+      if (!event.referrer) {
         return acc.set('Direct / None', (acc.get('Direct / None') || 0) + 1);
+      } else if (event.referrer.includes('linkedin')) {
+        return acc.set('LinkedIn', (acc.get('LinkedIn') || 0) + 1);
       }
+
+      return acc.set(
+        new URL(event.referrer).origin,
+        (acc.get(new URL(event.referrer).origin) || 0) + 1,
+      );
     }, new Map());
 
     return [...referrers.entries()]
