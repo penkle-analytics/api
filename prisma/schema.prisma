@@ -11,58 +11,68 @@ datasource db {
 model Subscription {
   id                 String             @id @default(cuid())
   subscriptionId     String             @unique
-  subscriptionPlan   SubscriptionPlan
-  subscriptionStatus SubscriptionStatus
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
-  userId             String             @unique
   customerId         String             @unique
   productId          String             @unique
+  subscriptionPlan   SubscriptionPlan
+  subscriptionStatus SubscriptionStatus
   periodEndsAt       DateTime
   cancelAtPeriodEnd  Boolean            @default(false)
-  user               User               @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
 }
 
 model User {
-  id           String        @id @default(cuid())
-  firstName    String
-  lastName     String
-  email        String        @unique
-  password     String
-  lastSeenAt   DateTime      @default(now())
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id         String   @id @default(cuid())
+  firstName  String
+  lastName   String
+  email      String   @unique
+  password   String
+  lastSeenAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   subscription Subscription?
   domains      UserDomain[]
 }
 
 model WaitlistUser {
-  id        String   @id @default(cuid())
-  email     String   @unique
+  id    String @id @default(cuid())
+  email String @unique
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model UserDomain {
-  id        String   @id @default(cuid())
+  id   String     @id @default(cuid())
+  role DomainRole @default(OWNER)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  userId    String
-  domainId  String
-  domain    Domain   @relation(fields: [domainId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
+
+  domainId String
+  domain   Domain @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User   @relation(fields: [userId], references: [id])
 
   @@unique([userId, domainId])
 }
 
 model Domain {
-  id        String       @id @default(cuid())
-  name      String       @unique
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-  events    Event[]
-  sessions  Session[]
-  users     UserDomain[]
+  id   String @id @default(cuid())
+  name String @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  events   Event[]
+  sessions Session[]
+  users    UserDomain[]
 }
 
 model Event {
@@ -73,24 +83,28 @@ model Event {
   country         String
   browser         String
   os              String
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  domainId        String
   countryCode     String
   uniqueVisitorId String?
-  sessionId       String?
-  domain          Domain    @relation(fields: [domainId], references: [id])
-  session         Session?  @relation(fields: [sessionId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  domainId  String
+  domain    Domain   @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  sessionId String?
+  session   Session? @relation(fields: [sessionId], references: [id])
 }
 
 model Session {
-  id              String   @id @default(cuid())
+  id              String @id @default(cuid())
   uniqueVisitorId String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  domainId        String
-  events          Event[]
-  domain          Domain   @relation(fields: [domainId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  domainId String
+  domain   Domain  @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  events   Event[]
 }
 
 enum SubscriptionPlan {
@@ -109,4 +123,10 @@ enum SubscriptionStatus {
 
 enum EventType {
   PAGE_VIEW
+}
+
+enum DomainRole {
+  OWNER
+  ADMIN
+  MEMBER
 }

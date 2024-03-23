@@ -2,9 +2,11 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
+  InternalServerErrorException,
   NotFoundException,
   Param,
   Patch,
@@ -386,6 +388,58 @@ export class GatewayController {
         return this.eventsService.getAllBrowsersInPeriod(domain.id, query);
       default:
         throw new BadRequestException('Invalid type');
+    }
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('/domains/:name/members')
+  async getDomainMembers(@Req() req: Request, @Param('name') name: string) {
+    const domain = await this.domainsService.findUnique({
+      where: {
+        name,
+        users: {
+          some: {
+            userId: req['user'].sub,
+          },
+        },
+      },
+    });
+
+    if (!domain) {
+      throw new NotFoundException('Domain not found');
+    }
+
+    return this.domainsService.getMembersByDomainId(domain.id);
+  }
+
+  @UseGuards(AuthGuard)
+  @Delete('/domains/:name')
+  async removeDomain(@Req() req: Request, @Param('name') name: string) {
+    console.log('DELETE /domains/:name', { name });
+
+    const domain = await this.domainsService.findUnique({
+      where: {
+        name,
+        users: {
+          some: {
+            userId: req['user'].sub,
+          },
+        },
+      },
+    });
+
+    if (!domain) {
+      throw new NotFoundException('Domain not found');
+    }
+
+    try {
+      await this.domainsService.deleteOneById(domain.id);
+
+      return {
+        status: 'ok',
+      };
+    } catch (error) {
+      throw new InternalServerErrorException(error);
     }
   }
 

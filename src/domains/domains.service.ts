@@ -31,6 +31,17 @@ export class DomainsService {
     });
   }
 
+  getMembersByDomainId(domainId: string) {
+    return this.dbService.userDomain.findMany({
+      where: {
+        domainId,
+      },
+      include: {
+        user: true,
+      },
+    });
+  }
+
   findAll(data: Prisma.DomainFindManyArgs) {
     return this.dbService.domain.findMany(data);
   }
@@ -43,7 +54,11 @@ export class DomainsService {
     return this.dbService.domain.update(data);
   }
 
-  remove(data: Prisma.DomainDeleteArgs) {
-    return this.dbService.domain.delete(data);
+  deleteOneById(domainId: string) {
+    return this.dbService.domain.delete({
+      where: {
+        id: domainId,
+      },
+    });
   }
 }
