@@ -558,6 +558,19 @@ export class GatewayController {
     };
   }
 
+  @Get('/subscriptions/plans')
+  async getSubscriptions() {
+    try {
+      return this.subscriptionsService.getSubscriptions({
+        includeFree: true,
+      });
+    } catch (error) {
+      console.error('Error getting subscriptions', error);
+
+      return [];
+    }
+  }
+
   @UseGuards(AuthGuard)
   @Post('/subscriptions/checkout-session')
   async createCheckoutSession(
@@ -589,8 +602,8 @@ export class GatewayController {
   }
 
   @UseGuards(AuthGuard)
-  @Get('/subscriptions')
-  async getSubscriptions(@Req() req: Request) {
+  @Get('/subscription')
+  async getSubscription(@Req() req: Request) {
     const subscription =
       await this.subscriptionsService.findSubscriptionByUserId(req['user'].sub);
 

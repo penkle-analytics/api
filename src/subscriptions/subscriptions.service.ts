@@ -9,11 +9,87 @@ import { plans } from 'src/config/stripe';
 import { CreateBillingPortalSessionDto } from './dto/create-billing-portal-session.dto';
 import { ChangeSubscriptionPlanDto } from './dto/change-subscription-plan.dto';
 import { DomainsService } from 'src/domains/domains.service';
-import { Prisma, UserDomain } from '@prisma/client';
+import { Prisma, SubscriptionPlan, UserDomain } from '@prisma/client';
 
 type DomainWithUserDomain = Prisma.DomainGetPayload<{
   include: { users: true };
 }>;
+
+const freePlan = {
+  name: 'Free',
+  plan: 'FREE',
+  priceId: null,
+  price: 0,
+  description: 'We all start somewhere.',
+  events: 5_000,
+  features: [
+    'Up to 5k Monthly Events',
+    'Unlimited Domains',
+    'GDPR Compliance',
+    '100% Data Ownership',
+    '2 Years Data Retention',
+    'Basic Support',
+  ],
+};
+
+export const paidPlansMetadata = [
+  {
+    plan: SubscriptionPlan.DEVELOPER,
+    description: "Maybe I'm onto something here...",
+    events: 50_000,
+    features: [
+      'Up to 50k Monthly Events',
+      'Unlimited Domains',
+      'GDPR Compliance',
+      '100% Data Ownership',
+      '3 Years Data Retention',
+      'Priority Support',
+    ],
+  },
+  {
+    plan: SubscriptionPlan.HOBBYIST,
+    description: 'How do I make this my full-time job?',
+    events: 100_000,
+    features: [
+      'Up to 100k Monthly Events',
+      'Unlimited Domains',
+      'GDPR Compliance',
+      '100% Data Ownership',
+      '4 Years Data Retention',
+      'Priority Support',
+    ],
+  },
+  {
+    plan: SubscriptionPlan.INDIE,
+    description: 'Look ma, I made it!',
+    events: 500_000,
+    features: [
+      'Up to 500k Monthly Events',
+      'Unlimited Domains',
+      'GDPR Compliance',
+      '100% Data Ownership',
+      '5 Years Data Retention',
+      'Dedicated Support',
+    ],
+  },
+  {
+    plan: SubscriptionPlan.STARTUP,
+    description: "I'm the next Google!",
+    events: 1_000_000,
+    features: [
+      'Up to 1M Monthly Events',
+      'Unlimited Domains',
+      'GDPR Compliance',
+      '100% Data Ownership',
+      '5 Years Data Retention',
+      'Dedicated Support',
+    ],
+  },
+];
+
+type GetSubscriptions = {
+  includeFree?: boolean;
+};
 
 @Injectable()
 export class SubscriptionsService {
@@ -30,20 +106,34 @@ export class SubscriptionsService {
     );
   }
 
-  async getSubscriptions() {
+  async getSubscriptions(opts: GetSubscriptions = {}) {
     const products = await this.stripe.products.list({
       active: true,
-      limit: 3,
     });
 
-    return products.data
-      .filter((p) => p.default_price)
-      .map((product) => ({
-        id: product.id,
-        plan: product['metadata'].plan,
+    const prices = await this.stripe.prices.list({
+      active: true,
+    });
+
+    const paidPlans = products.data.map((product) => {
+      const price = prices.data.find((price) => price.product === product.id);
+      const metadata = paidPlansMetadata.find(
+        (p) => p.plan === product.metadata['plan'],
+      );
+
+      return {
         name: product.name,
-        priceId: product.default_price,
-      }));
+        plan: product.name,
+        priceId: price.id,
+        price: price.unit_amount / 100,
+        ...metadata,
+      };
+    });
+
+    return [
+      ...(opts.includeFree ? [freePlan] : []),
+      ...paidPlans.sort((a, b) => a.price - b.price),
+    ];
   }
 
   findSubscriptionByUserId(userId: string) {
@@ -109,7 +199,7 @@ export class SubscriptionsService {
       mode: 'subscription',
       success_url: `${this.configService.get<Config['frontendUrl']>(
         'frontendUrl',
-      )}/pricing/success`,
+      )}/dashboard/settings?action=sub`,
       cancel_url: `${this.configService.get<Config['frontendUrl']>(
         'frontendUrl',
       )}/pricing`,
