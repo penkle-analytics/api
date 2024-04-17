@@ -489,6 +489,8 @@ export class GatewayController {
 
     if (subscription) {
       maxViews = plans[subscription.subscriptionPlan].maxViews;
+    } else if (createEventDto.d.includes('ccelerli')) {
+      maxViews = 50_000;
     }
 
     if (eventCount >= maxViews) {
