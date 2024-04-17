@@ -26,6 +26,23 @@ export class EventsService {
       geo?.country,
     );
 
+    const utm: {
+      utmSource?: string | null;
+      utmMedium?: string | null;
+      utmCampaign?: string | null;
+    } = {};
+
+    try {
+      const url = new URL(createEventDto.h);
+      const searchParams = new URLSearchParams(url.search);
+
+      utm.utmSource = searchParams.get('utm_source');
+      utm.utmMedium = searchParams.get('utm_medium');
+      utm.utmCampaign = searchParams.get('utm_campaign');
+    } catch (error) {
+      console.error('Failed to parse URL', error);
+    }
+
     return this.dbService.event.create({
       data: {
         uniqueVisitorId: this.createUniqueVisitorId(
@@ -40,6 +57,7 @@ export class EventsService {
         countryCode: geo?.country,
         browser: parsed.browser.name,
         os: parsed.os.name,
+        ...utm,
         domain: {
           connect: {
             name: createEventDto.d.toLowerCase(),

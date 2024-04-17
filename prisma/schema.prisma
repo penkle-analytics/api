@@ -77,6 +77,7 @@ model Domain {
 
 model Event {
   id              String    @id @default(cuid())
+  uniqueVisitorId String?
   type            EventType
   href            String
   referrer        String?
@@ -84,7 +85,9 @@ model Event {
   browser         String
   os              String
   countryCode     String
-  uniqueVisitorId String?
+  utmSource       String?
+  utmMedium       String?
+  utmCampaign     String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
