@@ -22,6 +22,14 @@ export class EventsService {
   ) {
     const geo = geoip.lookup(meta.ip);
     const parsed = uaParser(meta.ua);
+
+    const device: 'Mobile' | 'Tablet' | 'Desktop' =
+      parsed.device.type === 'mobile'
+        ? 'Mobile'
+        : parsed.device.type === 'tablet'
+        ? 'Tablet'
+        : 'Desktop';
+
     const country = new Intl.DisplayNames(['en'], { type: 'region' }).of(
       geo?.country,
     );
@@ -57,6 +65,7 @@ export class EventsService {
         countryCode: geo?.country,
         browser: parsed.browser.name,
         os: parsed.os.name,
+        device,
         ...utm,
         domain: {
           connect: {

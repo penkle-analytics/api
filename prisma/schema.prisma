@@ -85,6 +85,7 @@ model Event {
   browser         String
   os              String
   countryCode     String
+  device          String?
   utmSource       String?
   utmMedium       String?
   utmCampaign     String?
