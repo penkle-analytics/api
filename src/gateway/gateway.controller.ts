@@ -333,7 +333,7 @@ export class GatewayController {
     });
 
     const subscription =
-      await this.subscriptionsService.findSubscriptionByUserId(req['user'].sub);
+      await this.subscriptionsService.findSubscriptionByDomain(domain.name);
 
     let maxViews = FREE_PLAN_VIEW_LIMIT;
 

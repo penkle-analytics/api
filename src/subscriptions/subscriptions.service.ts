@@ -143,21 +143,17 @@ export class SubscriptionsService {
   }
 
   async findSubscriptionByDomain(name: string) {
-    const domain = (await this.domainsService.findUnique({
-      where: { name },
-      include: {
-        users: true,
+    const user = await this.dbService.userDomain.findFirst({
+      where: {
+        role: 'OWNER',
+        domain: {
+          name,
+        },
       },
-    })) as DomainWithUserDomain;
-
-    if (!domain || !domain.users.length) {
-      return null;
-    }
-
-    const { userId } = domain.users[0];
+    });
 
     return this.dbService.subscription.findUnique({
-      where: { userId },
+      where: { userId: user.userId },
     });
   }
 
