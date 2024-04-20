@@ -1,0 +1,6 @@
+NODE mv
+SQL >
+    SELECT * FROM events
+
+TYPE MATERIALIZED
+DATASOURCE events_mv

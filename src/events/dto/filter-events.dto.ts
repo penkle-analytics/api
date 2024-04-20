@@ -1,12 +1,12 @@
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
 
-const period = ['day', 'week', 'month'] as const;
+const period = ['1h', '1d', '7d', '30d', '1y', 'all'] as const;
 
 export type Period = (typeof period)[number];
 
-const interval = ['hour', 'day', 'week', 'month'] as const;
+// const interval = ['hour', 'day', 'week', 'month'] as const;
 
-export type Interval = (typeof interval)[number];
+// export type Interval = (typeof interval)[number];
 
 export class FilterEventsDto {
   @IsString()
@@ -33,11 +33,15 @@ export class FilterEventsDto {
   @IsOptional()
   period?: Period;
 
-  @IsEnum(interval)
-  @IsOptional()
-  interval?: Interval;
+  // @IsEnum(interval)
+  // @IsOptional()
+  // interval?: Interval;
 
   @IsString()
   @IsOptional()
   date?: string;
+
+  @IsString()
+  @IsOptional()
+  new?: string;
 }

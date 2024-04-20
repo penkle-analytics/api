@@ -27,6 +27,7 @@
     "stripe:listen": "stripe listen --forward-to localhost:4000/webhooks/stripe"
   },
   "dependencies": {
+    "@chronark/zod-bird": "^0.3.7",
     "@nestjs/common": "^8.0.0",
     "@nestjs/config": "^3.2.0",
     "@nestjs/core": "^8.0.0",
@@ -41,7 +42,6 @@
     "cookie-parser": "^1.4.6",
     "dayjs": "^1.11.10",
     "geoip-lite": "^1.4.10",
-    "isbot": "^5.1.1",
     "iso-3166-2": "^1.0.0",
     "micro": "^10.0.1",
     "passport": "^0.7.0",

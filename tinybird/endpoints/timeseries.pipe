@@ -1,0 +1,111 @@
+DESCRIPTION >
+    Timeseries data
+
+NODE minute_interval
+SQL >
+    %
+    WITH
+        toStartOfMinute(toDateTime64({{ DateTime64(start) }}, 3)) AS start,
+        toStartOfMinute(toDateTime64({{ DateTime64(end) }}, 3)) AS
+    end
+    SELECT
+        arrayJoin(arrayMap(x -> toDateTime64(x, 3), range(toUInt32(start + 60), toUInt32(end + 60), 60))
+    ) as interval
+
+NODE hour_intervals
+SQL >
+    %
+    WITH
+        toStartOfHour(toDateTime64({{ DateTime64(start) }}, 3)) AS start,
+        toStartOfHour(toDateTime64({{ DateTime64(end) }}, 3)) AS
+    end
+    SELECT
+        arrayJoin(
+            arrayMap(x -> toDateTime64(x, 3), range(toUInt32(start + 3600), toUInt32(end + 3600), 3600)
+        )
+    ) as interval
+
+NODE day_intervals
+SQL >
+    %
+    WITH
+        toStartOfDay(toDateTime64({{ DateTime64(start) }}, 3)) AS start,
+        toStartOfDay(toDateTime64({{ DateTime64(end) }}, 3)) AS
+    end
+    SELECT
+        arrayJoin(
+            arrayMap(
+                x -> toDateTime64(x, 3), range(toUInt32(start + 86400), toUInt32(end + 86400), 86400
+            )
+        )
+    ) as interval
+
+NODE month_intervals
+SQL >
+    %
+    SELECT toStartOfMonth(toDateTime64({{ DateTime64(start) }}, 3)) as interval
+    ORDER BY interval ASC
+    WITH FILL
+    FROM
+        toStartOfMonth(toDateTime64({{ DateTime64(start) }}, 3))
+        TO
+        toStartOfMonth(addMonths(toDateTime64({{ DateTime64(end) }}, 3), 1))
+        STEP interval 1 month
+
+NODE timeseries_data
+SQL >
+    %
+    SELECT
+        {% if granularity == "minute" %} toStartOfMinute(timestamp)
+        {% elif granularity == "hour" %} toStartOfHour(timestamp)
+        {% elif granularity == "month" %} toDateTime(toStartOfMonth(timestamp))
+        {% else %} toDateTime(toStartOfDay(timestamp))
+        {% end %} AS interval,
+        uniq(*) as clicks
+    FROM events_mv
+    WHERE
+        true
+        {% if defined(domain_id) %}
+            AND domain_id
+            = {{
+                String(
+                    domain_id,
+                    description="The ID of the domain",
+                )
+            }}
+        {% end %}
+        {% if defined(start) %} AND timestamp >= {{ DateTime64(start) }} {% end %}
+        {% if defined(end) %} AND timestamp <= {{ DateTime64(end) }} {% end %}
+        {% if defined(href) %} AND href = {{ href }} {% end %}
+        {% if defined(country) %} AND country = {{ country }} {% end %}
+        {% if defined(city) %} AND city = {{ city }} {% end %}
+        {% if defined(region) %} AND region = {{ region }} {% end %}
+        {% if defined(browser) %} AND browser = {{ browser }} {% end %}
+        {% if defined(browser_version) %} AND browser_version = {{ browser_version }} {% end %}
+        {% if defined(engine) %} AND engine = {{ engine }} {% end %}
+        {% if defined(engine_version) %} AND engine_version = {{ engine_version }} {% end %}
+        {% if defined(os) %} AND os = {{ os }} {% end %}
+        {% if defined(os_version) %} AND os_version = {{ os_version }} {% end %}
+        {% if defined(device) %} AND device = {{ device }} {% end %}
+        {% if defined(device_vendor) %} AND device_vendor = {{ device_vendor }} {% end %}
+        {% if defined(device_model) %} AND device_model = {{ device_model }} {% end %}
+        {% if defined(cpu_architecture) %} AND cpu_architecture = {{ cpu_architecture }} {% end %}
+        {% if defined(bot) %} AND bot = {{ bot }} {% end %}
+        {% if defined(referrer) %} AND referrer = {{ referrer }} {% end %}
+        {% if defined(utm_source) %} AND utm_source = {{ utm_source }} {% end %}
+        {% if defined(utm_medium) %} AND utm_medium = {{ utm_medium }} {% end %}
+        {% if defined(utm_campaign) %} AND utm_campaign = {{ utm_campaign }} {% end %}
+    GROUP BY interval
+    ORDER BY interval
+
+NODE endpoint
+SQL >
+    %
+    SELECT formatDateTime(interval, '%FT%T.000Z') as date, clicks
+    FROM
+        {% if granularity == "minute" %} minute_intervals
+        {% elif granularity == "hour" %} hour_intervals
+        {% elif granularity == "month" %} month_intervals
+        {% else %} day_intervals
+        {% end %}
+    LEFT JOIN timeseries_data USING interval

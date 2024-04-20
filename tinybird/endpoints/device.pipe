@@ -1,0 +1,46 @@
+DESCRIPTION >
+    Top devices by domain
+
+TOKEN "endpoint_read" READ
+
+NODE endpoint
+SQL >
+    %
+    SELECT
+        device,
+        COUNT(*) AS count
+    FROM events_mv
+    WHERE
+        true
+        {% if defined(domain_id) %}
+            AND domain_id
+            = {{
+                String(
+                    domain_id,
+                    description="The ID of the domain",
+                )
+            }}
+        {% end %}
+        {% if defined(date_from) %} AND timestamp >= {{ DateTime64(date_from) }} {% end %}
+        {% if defined(date_to) %} AND timestamp <= {{ DateTime64(date_to) }} {% end %}
+        {% if defined(href) %} AND href = {{ href }} {% end %}
+        {% if defined(country) %} AND country = {{ country }} {% end %}
+        {% if defined(city) %} AND city = {{ city }} {% end %}
+        {% if defined(region) %} AND region = {{ region }} {% end %}
+        {% if defined(browser) %} AND browser = {{ browser }} {% end %}
+        {% if defined(browser_version) %} AND browser_version = {{ browser_version }} {% end %}
+        {% if defined(engine) %} AND engine = {{ engine }} {% end %}
+        {% if defined(engine_version) %} AND engine_version = {{ engine_version }} {% end %}
+        {% if defined(os) %} AND os = {{ os }} {% end %}
+        {% if defined(os_version) %} AND os_version = {{ os_version }} {% end %}
+        {% if defined(device) %} AND device = {{ device }} {% end %}
+        {% if defined(device_vendor) %} AND device_vendor = {{ device_vendor }} {% end %}
+        {% if defined(device_model) %} AND device_model = {{ device_model }} {% end %}
+        {% if defined(cpu_architecture) %} AND cpu_architecture = {{ cpu_architecture }} {% end %}
+        {% if defined(bot) %} AND bot = {{ bot }} {% end %}
+        {% if defined(referrer) %} AND referrer = {{ referrer }} {% end %}
+        {% if defined(utm_source) %} AND utm_source = {{ utm_source }} {% end %}
+        {% if defined(utm_medium) %} AND utm_medium = {{ utm_medium }} {% end %}
+        {% if defined(utm_campaign) %} AND utm_campaign = {{ utm_campaign }} {% end %}
+    GROUP BY device
+    ORDER BY count DESC

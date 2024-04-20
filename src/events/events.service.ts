@@ -5,22 +5,39 @@ import { CreateEventDto } from './dto/create-event.dto';
 import * as geoip from 'geoip-lite';
 import * as uaParser from 'ua-parser-js';
 import * as dayjs from 'dayjs';
-import { createHmac } from 'crypto';
-import { FilterEventsDto } from './dto/filter-events.dto';
+import { createHmac, randomBytes } from 'crypto';
+import { FilterEventsDto, Period } from './dto/filter-events.dto';
 import { objectKeys } from 'src/utils/object-keys';
+import { TinybirdService } from 'src/tinybird/tinybird.service';
+import { GeoService } from 'src/geo/geo.service';
+import { detectBot } from 'src/utils/middleware/detect-bot';
+
+const periodIntervalMapping: Record<Period, dayjs.UnitTypeShort> = {
+  '1h': 'm',
+  '1d': 'h',
+  '7d': 'd',
+  '30d': 'd',
+  '1y': 'm',
+  // May need to be adjusted
+  all: 'd',
+};
 
 @Injectable()
 export class EventsService {
-  constructor(private readonly dbService: DbService) {}
+  constructor(
+    private readonly dbService: DbService,
+    private readonly geoService: GeoService,
+    private readonly tbService: TinybirdService,
+  ) {}
 
-  create(
+  async create(
     createEventDto: CreateEventDto,
     meta: {
       ip: string;
       ua: string;
     },
   ) {
-    const geo = geoip.lookup(meta.ip);
+    const geo = await this.geoService.geo(meta.ip);
     const parsed = uaParser(meta.ua);
 
     const device: 'Mobile' | 'Tablet' | 'Desktop' =
@@ -30,15 +47,21 @@ export class EventsService {
         ? 'Tablet'
         : 'Desktop';
 
-    const country = new Intl.DisplayNames(['en'], { type: 'region' }).of(
-      geo?.country,
-    );
+    // const country = new Intl.DisplayNames(['en'], { type: 'region' }).of(
+    //   geo?.country,
+    // );
 
     const utm: {
       utmSource?: string | null;
       utmMedium?: string | null;
       utmCampaign?: string | null;
     } = {};
+
+    const domain = await this.dbService.domain.findUnique({
+      where: {
+        name: createEventDto.d.toLowerCase(),
+      },
+    });
 
     try {
       const url = new URL(createEventDto.h);
@@ -51,6 +74,119 @@ export class EventsService {
       console.error('Failed to parse URL', error);
     }
 
+    try {
+      const res = await this.tbService.injectEvents({
+        timestamp: dayjs().toISOString().replace('T', ' ').replace('Z', ''),
+        event_id: randomBytes(16).toString('hex'),
+        domain_id: domain.id,
+        unique_visitor_id: this.createUniqueVisitorId(
+          createEventDto.d.toLowerCase(),
+          meta.ip,
+          meta.ua,
+        ),
+        type: createEventDto.n,
+        href: createEventDto.h,
+        country: geo.country || 'Unknown',
+        country_code: geo.countryCode || 'Unknown',
+        city: geo.city || 'Unknown',
+        region: geo.regionName || 'Unknown',
+        latitude: geo.lat?.toString() || 'Unknown',
+        longitude: geo.lon?.toString() || 'Unknown',
+        ua: meta.ua,
+        browser: parsed.browser.name || 'Unknown',
+        browser_version: parsed.browser.version || 'Unknown',
+        engine: parsed.engine.name || 'Unknown',
+        engine_version: parsed.engine.version || 'Unknown',
+        os: parsed.os.name || 'Unknown',
+        os_version: parsed.os.version || 'Unknown',
+        device: parsed.device.type || 'Unknown',
+        device_vendor: parsed.device.vendor || 'Unknown',
+        device_model: parsed.device.model || 'Unknown',
+        cpu_architecture: parsed.cpu.architecture || 'Unknown',
+        bot: detectBot(meta.ua) ? 1 : 0,
+        referrer: createEventDto.r || 'None',
+        referrer_url: createEventDto.r || 'None',
+        utm_source: utm.utmSource || 'None',
+        utm_medium: utm.utmMedium || 'None',
+        utm_campaign: utm.utmCampaign || 'None',
+      });
+
+      console.log(
+        {
+          timestamp: dayjs().toISOString().replace('T', ' ').replace('Z', ''),
+          event_id: randomBytes(16).toString('hex'),
+          domain_id: domain.id,
+          unique_visitor_id: this.createUniqueVisitorId(
+            createEventDto.d.toLowerCase(),
+            meta.ip,
+            meta.ua,
+          ),
+          type: createEventDto.n,
+          href: createEventDto.h,
+          country: geo.country || 'Unknown',
+          country_code: geo.countryCode || 'Unknown',
+          city: geo.city || 'Unknown',
+          region: geo.regionName || 'Unknown',
+          latitude: geo.lat?.toString() || 'Unknown',
+          longitude: geo.lon?.toString() || 'Unknown',
+          ua: meta.ua,
+          browser: parsed.browser.name || 'Unknown',
+          browser_version: parsed.browser.version || 'Unknown',
+          engine: parsed.engine.name || 'Unknown',
+          engine_version: parsed.engine.version || 'Unknown',
+          os: parsed.os.name || 'Unknown',
+          os_version: parsed.os.version || 'Unknown',
+          device: parsed.device.type || 'Unknown',
+          device_vendor: parsed.device.vendor || 'Unknown',
+          device_model: parsed.device.model || 'Unknown',
+          cpu_architecture: parsed.cpu.architecture || 'Unknown',
+          bot: detectBot(meta.ua) ? 1 : 0,
+          referrer: createEventDto.r || 'None',
+          referrer_url: createEventDto.r || 'None',
+          utm_source: utm.utmSource || 'None',
+          utm_medium: utm.utmMedium || 'None',
+          utm_campaign: utm.utmCampaign || 'None',
+        },
+        res,
+      );
+    } catch (error) {
+      console.log('Failed to inject event into Tinybird', error, {
+        timestamp: dayjs().toISOString().replace('T', ' ').replace('Z', ''),
+        event_id: randomBytes(16).toString('hex'),
+        domain_id: domain.id,
+        unique_visitor_id: this.createUniqueVisitorId(
+          createEventDto.d.toLowerCase(),
+          meta.ip,
+          meta.ua,
+        ),
+        type: createEventDto.n,
+        href: createEventDto.h,
+        country: geo.country || 'Unknown',
+        country_code: geo.countryCode || 'Unknown',
+        city: geo.city || 'Unknown',
+        region: geo.regionName || 'Unknown',
+        latitude: geo.lat?.toString() || 'Unknown',
+        longitude: geo.lon?.toString() || 'Unknown',
+        ua: meta.ua,
+        browser: parsed.browser.name || 'Unknown',
+        browser_version: parsed.browser.version || 'Unknown',
+        engine: parsed.engine.name || 'Unknown',
+        engine_version: parsed.engine.version || 'Unknown',
+        os: parsed.os.name || 'Unknown',
+        os_version: parsed.os.version || 'Unknown',
+        device: parsed.device.type || 'Unknown',
+        device_vendor: parsed.device.vendor || 'Unknown',
+        device_model: parsed.device.model || 'Unknown',
+        cpu_architecture: parsed.cpu.architecture || 'Unknown',
+        bot: detectBot(meta.ua) ? 1 : 0,
+        referrer: createEventDto.r || 'None',
+        referrer_url: createEventDto.r || 'None',
+        utm_source: utm.utmSource || 'None',
+        utm_medium: utm.utmMedium || 'None',
+        utm_campaign: utm.utmCampaign || 'None',
+      });
+    }
+
     return this.dbService.event.create({
       data: {
         uniqueVisitorId: this.createUniqueVisitorId(
@@ -61,8 +197,8 @@ export class EventsService {
         type: createEventDto.n,
         href: createEventDto.h,
         referrer: createEventDto.r,
-        country,
-        countryCode: geo?.country,
+        country: geo?.country,
+        countryCode: geo?.countryCode,
         browser: parsed.browser.name,
         os: parsed.os.name,
         device,
@@ -80,9 +216,22 @@ export class EventsService {
     return this.dbService.event.count(data);
   }
 
-  async getAllEventsInPeriod(domainId: string, filters: FilterEventsDto) {
-    const from = dayjs(filters.date).subtract(1, filters.period).toDate();
-    const to = dayjs(filters.date).toDate();
+  async timeseries(domainId: string, filters: FilterEventsDto) {
+    let to: Date;
+    let from: Date;
+
+    if (filters.period === 'all') {
+      to = new Date();
+      from = new Date('2024-02-29');
+    } else {
+      const [amount, period] = filters.period.match(/\d+|\D+/g) as [
+        string,
+        dayjs.UnitTypeShort,
+      ];
+
+      to = dayjs(filters.date).toDate();
+      from = dayjs(filters.date).subtract(+amount, period).toDate();
+    }
 
     const eventsData = await this.findAll({
       where: {
@@ -109,7 +258,8 @@ export class EventsService {
       },
     });
 
-    const dataPoints = dayjs(to).diff(from, filters.interval) + 1;
+    const dataPoints =
+      dayjs(to).diff(from, periodIntervalMapping[filters.period as Period]) + 1;
 
     const eventsInPeriod: {
       date: Date;
@@ -121,9 +271,14 @@ export class EventsService {
     }[] = [];
 
     for (let i = 0; i < dataPoints; i++) {
-      const date = dayjs(to).subtract(i, filters.interval).toDate();
+      const date = dayjs(to)
+        .subtract(i, periodIntervalMapping[filters.period as Period])
+        .toDate();
       const eventsForInterval = eventsData.filter((event) =>
-        dayjs(event.createdAt).isSame(date, filters.interval),
+        dayjs(event.createdAt).isSame(
+          date,
+          periodIntervalMapping[filters.period as Period],
+        ),
       );
 
       let sessionEventCount: Record<string, number> = {};
@@ -177,14 +332,30 @@ export class EventsService {
   }
 
   async getAllReferrersInPeriod(domainId: string, filters: FilterEventsDto) {
+    let to: Date;
+    let from: Date;
+
+    if (filters.period === 'all') {
+      to = new Date();
+      from = new Date('2024-02-29');
+    } else {
+      const [amount, period] = filters.period.match(/\d+|\D+/g) as [
+        string,
+        dayjs.UnitTypeShort,
+      ];
+
+      to = dayjs(filters.date).toDate();
+      from = dayjs(filters.date).subtract(+amount, period).toDate();
+    }
+
     const events = await this.dbService.event.findMany({
       where: {
         domain: {
           id: domainId,
         },
         createdAt: {
-          gte: dayjs(filters.date).subtract(1, filters.period).toDate(),
-          lte: dayjs(filters.date).toDate(),
+          gte: from,
+          lte: to,
         },
         ...(filters?.referrer && {
           referrer:
@@ -223,14 +394,30 @@ export class EventsService {
   }
 
   async getAllPagesInPeriod(domainId: string, filters: FilterEventsDto) {
+    let to: Date;
+    let from: Date;
+
+    if (filters.period === 'all') {
+      to = new Date();
+      from = new Date('2024-02-29');
+    } else {
+      const [amount, period] = filters.period.match(/\d+|\D+/g) as [
+        string,
+        dayjs.UnitTypeShort,
+      ];
+
+      to = dayjs(filters.date).toDate();
+      from = dayjs(filters.date).subtract(+amount, period).toDate();
+    }
+
     const events = await this.dbService.event.findMany({
       where: {
         domain: {
           id: domainId,
         },
         createdAt: {
-          gte: dayjs(filters.date).subtract(1, filters.period).toDate(),
-          lte: dayjs(filters.date).toDate(),
+          gte: from,
+          lte: to,
         },
         ...(filters?.referrer && {
           referrer:
@@ -265,14 +452,30 @@ export class EventsService {
   }
 
   async getAllCountriesInPeriod(domainId: string, filters: FilterEventsDto) {
+    let to: Date;
+    let from: Date;
+
+    if (filters.period === 'all') {
+      to = new Date();
+      from = new Date('2024-02-29');
+    } else {
+      const [amount, period] = filters.period.match(/\d+|\D+/g) as [
+        string,
+        dayjs.UnitTypeShort,
+      ];
+
+      to = dayjs(filters.date).toDate();
+      from = dayjs(filters.date).subtract(+amount, period).toDate();
+    }
+
     const events = await this.dbService.event.findMany({
       where: {
         domain: {
           id: domainId,
         },
         createdAt: {
-          gte: dayjs(filters.date).subtract(1, filters.period).toDate(),
-          lte: dayjs(filters.date).toDate(),
+          gte: from,
+          lte: to,
         },
         ...(filters?.referrer && {
           referrer:
@@ -303,14 +506,30 @@ export class EventsService {
   }
 
   async getAllOsInPeriod(domainId: string, filters: FilterEventsDto) {
+    let to: Date;
+    let from: Date;
+
+    if (filters.period === 'all') {
+      to = new Date();
+      from = new Date('2024-02-29');
+    } else {
+      const [amount, period] = filters.period.match(/\d+|\D+/g) as [
+        string,
+        dayjs.UnitTypeShort,
+      ];
+
+      to = dayjs(filters.date).toDate();
+      from = dayjs(filters.date).subtract(+amount, period).toDate();
+    }
+
     const events = await this.dbService.event.findMany({
       where: {
         domain: {
           id: domainId,
         },
         createdAt: {
-          gte: dayjs(filters.date).subtract(1, filters.period).toDate(),
-          lte: dayjs(filters.date).toDate(),
+          gte: from,
+          lte: to,
         },
         ...(filters?.referrer && {
           referrer:
@@ -341,14 +560,30 @@ export class EventsService {
   }
 
   async getAllBrowsersInPeriod(domainId: string, filters: FilterEventsDto) {
+    let to: Date;
+    let from: Date;
+
+    if (filters.period === 'all') {
+      to = new Date();
+      from = new Date('2024-02-29');
+    } else {
+      const [amount, period] = filters.period.match(/\d+|\D+/g) as [
+        string,
+        dayjs.UnitTypeShort,
+      ];
+
+      to = dayjs(filters.date).toDate();
+      from = dayjs(filters.date).subtract(+amount, period).toDate();
+    }
+
     const events = await this.dbService.event.findMany({
       where: {
         domain: {
           id: domainId,
         },
         createdAt: {
-          gte: dayjs(filters.date).subtract(1, filters.period).toDate(),
-          lte: dayjs(filters.date).toDate(),
+          gte: from,
+          lte: to,
         },
         ...(filters?.referrer && {
           referrer:
@@ -405,6 +640,209 @@ export class EventsService {
 
   remove(data: Prisma.EventDeleteArgs) {
     return this.dbService.event.delete(data);
+  }
+
+  private backwardsCompatibleResponse<T>(
+    pipeResponse: T & { data: Record<string, string | number>[] },
+    k: string,
+  ) {
+    const data = pipeResponse.data;
+
+    return data.map((entry) => ({
+      label: entry[k] as string,
+      value: +entry['count'],
+    }));
+  }
+
+  async getTimeseries(domainId: string, filters: FilterEventsDto) {
+    let from: Date;
+    let to: Date;
+
+    if (filters.period === 'all') {
+      from = new Date('2024-02-29');
+      to = new Date();
+    } else {
+      const [amount, period] = filters.period.match(/\d+|\D+/g) as [
+        string,
+        dayjs.UnitTypeShort,
+      ];
+
+      from = dayjs(filters.date).subtract(+amount, period).toDate();
+      to = dayjs(filters.date).toDate();
+    }
+
+    const dayjsUnit = periodIntervalMapping[filters.period as Period];
+
+    let granularity: 'minute' | 'hour' | 'day' | 'month';
+
+    switch (dayjsUnit) {
+      case 'm':
+        granularity = 'minute';
+        break;
+      case 'h':
+        granularity = 'hour';
+        break;
+      case 'd':
+        granularity = 'day';
+        break;
+      case 'M':
+        granularity = 'month';
+        break;
+      default:
+        granularity = 'day';
+        break;
+    }
+
+    const pipeFilters = {
+      domain_id: domainId,
+      start: from.toISOString().replace('T', ' ').replace('Z', ''),
+      end: to.toISOString().replace('T', ' ').replace('Z', ''),
+      granularity,
+    };
+
+    const data = await this.tbService.getTimeSeriesPipe(pipeFilters);
+
+    return data.data;
+  }
+
+  async getReferrers(domainId: string, filters: FilterEventsDto) {
+    let from: Date;
+    let to: Date;
+
+    if (filters.period === 'all') {
+      from = new Date('2024-02-29');
+      to = new Date();
+    } else {
+      const [amount, period] = filters.period.match(/\d+|\D+/g) as [
+        string,
+        dayjs.UnitTypeShort,
+      ];
+
+      from = dayjs(filters.date).subtract(+amount, period).toDate();
+      to = dayjs(filters.date).toDate();
+    }
+
+    const pipeFilters = {
+      domain_id: domainId,
+      date_from: from.toISOString().replace('T', ' ').replace('Z', ''),
+      date_to: to.toISOString().replace('T', ' ').replace('Z', ''),
+    };
+
+    const data = await this.tbService.getReferrerPipe(pipeFilters);
+
+    return this.backwardsCompatibleResponse(data, 'referrer');
+  }
+
+  async getPages(domainId: string, filters: FilterEventsDto) {
+    let from: Date;
+    let to: Date;
+
+    if (filters.period === 'all') {
+      from = new Date('2024-02-29');
+      to = new Date();
+    } else {
+      const [amount, period] = filters.period.match(/\d+|\D+/g) as [
+        string,
+        dayjs.UnitTypeShort,
+      ];
+
+      from = dayjs(filters.date).subtract(+amount, period).toDate();
+      to = dayjs(filters.date).toDate();
+    }
+
+    const pipeFilters = {
+      domain_id: domainId,
+      date_from: from.toISOString().replace('T', ' ').replace('Z', ''),
+      date_to: to.toISOString().replace('T', ' ').replace('Z', ''),
+    };
+
+    const data = await this.tbService.getPagePipe(pipeFilters);
+
+    return this.backwardsCompatibleResponse(data, 'href');
+  }
+
+  async getCountries(domainId: string, filters: FilterEventsDto) {
+    let from: Date;
+    let to: Date;
+
+    if (filters.period === 'all') {
+      from = new Date('2024-02-29');
+      to = new Date();
+    } else {
+      const [amount, period] = filters.period.match(/\d+|\D+/g) as [
+        string,
+        dayjs.UnitTypeShort,
+      ];
+
+      from = dayjs(filters.date).subtract(+amount, period).toDate();
+      to = dayjs(filters.date).toDate();
+    }
+
+    const pipeFilters = {
+      domain_id: domainId,
+      date_from: from.toISOString().replace('T', ' ').replace('Z', ''),
+      date_to: to.toISOString().replace('T', ' ').replace('Z', ''),
+    };
+
+    const data = await this.tbService.getCountryPipe(pipeFilters);
+
+    return this.backwardsCompatibleResponse(data, 'country');
+  }
+
+  async getBrowsers(domainId: string, filters: FilterEventsDto) {
+    let from: Date;
+    let to: Date;
+
+    if (filters.period === 'all') {
+      from = new Date('2024-02-29');
+      to = new Date();
+    } else {
+      const [amount, period] = filters.period.match(/\d+|\D+/g) as [
+        string,
+        dayjs.UnitTypeShort,
+      ];
+
+      from = dayjs(filters.date).subtract(+amount, period).toDate();
+      to = dayjs(filters.date).toDate();
+    }
+
+    const pipeFilters = {
+      domain_id: domainId,
+      date_from: from.toISOString().replace('T', ' ').replace('Z', ''),
+      date_to: to.toISOString().replace('T', ' ').replace('Z', ''),
+    };
+
+    const data = await this.tbService.getBrowserPipe(pipeFilters);
+
+    return this.backwardsCompatibleResponse(data, 'browser');
+  }
+
+  async getOs(domainId: string, filters: FilterEventsDto) {
+    let from: Date;
+    let to: Date;
+
+    if (filters.period === 'all') {
+      from = new Date('2024-02-29');
+      to = new Date();
+    } else {
+      const [amount, period] = filters.period.match(/\d+|\D+/g) as [
+        string,
+        dayjs.UnitTypeShort,
+      ];
+
+      from = dayjs(filters.date).subtract(+amount, period).toDate();
+      to = dayjs(filters.date).toDate();
+    }
+
+    const pipeFilters = {
+      domain_id: domainId,
+      date_from: from.toISOString().replace('T', ' ').replace('Z', ''),
+      date_to: to.toISOString().replace('T', ' ').replace('Z', ''),
+    };
+
+    const data = await this.tbService.getOsPipe(pipeFilters);
+
+    return this.backwardsCompatibleResponse(data, 'os');
   }
 
   private createUniqueVisitorId(domain: string, ip: string, ua: string) {

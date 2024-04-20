@@ -9,7 +9,6 @@ import {
   InternalServerErrorException,
   NotFoundException,
   Param,
-  Patch,
   Post,
   Query,
   Req,
@@ -28,9 +27,7 @@ import { DomainsService } from 'src/domains/domains.service';
 import { CreateEventDto } from 'src/events/dto/create-event.dto';
 import { EventsService } from 'src/events/events.service';
 import * as requestIp from 'request-ip';
-import { isbot } from 'isbot';
 import * as dayjs from 'dayjs';
-import { EventType } from '@prisma/client';
 import { FilterEventsDto } from 'src/events/dto/filter-events.dto';
 import { ResetDto } from 'src/auth/dto/reset.dto';
 import { SignupDto } from 'src/auth/dto/signup.dto';
@@ -40,6 +37,8 @@ import { CreateBillingPortalSessionDto } from 'src/subscriptions/dto/create-bill
 import { ChangeSubscriptionPlanDto } from 'src/subscriptions/dto/change-subscription-plan.dto';
 import { FREE_PLAN_VIEW_LIMIT, plans } from 'src/config/stripe';
 import { SessionsService } from 'src/sessions/sessions.service';
+import { detectBot } from 'src/utils/middleware/detect-bot';
+import { TinybirdService } from 'src/tinybird/tinybird.service';
 
 declare global {
   namespace Express {
@@ -58,6 +57,7 @@ export class GatewayController {
     private readonly domainsService: DomainsService,
     private readonly sessionsService: SessionsService,
     private readonly subscriptionsService: SubscriptionsService,
+    private readonly tbService: TinybirdService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -212,101 +212,93 @@ export class GatewayController {
     });
   }
 
-  @Get('/domains/demo')
-  async getDemoDomain(@Query() query: FilterEventsDto) {
-    const name = 'penkle.com';
+  // @Get('/domains/demo')
+  // async getDemoDomain(@Query() query: FilterEventsDto) {
+  //   const name = 'penkle.com';
 
-    query.period ||= 'week';
-    query.interval ||= 'day';
-    query.date ||= dayjs().toISOString();
+  //   query.period ||= 'week';
+  //   query.interval ||= 'day';
+  //   query.date ||= dayjs().toISOString();
 
-    const domain = await this.domainsService.findUnique({
-      // TODO: Make sure this only returns the domain if it belongs to the user
-      where: {
-        name,
-      },
-    });
+  //   const domain = await this.domainsService.findUnique({
+  //     // TODO: Make sure this only returns the domain if it belongs to the user
+  //     where: {
+  //       name,
+  //     },
+  //   });
 
-    const eventsInPeriod = await this.eventsService.getAllEventsInPeriod(
-      domain.id,
-      query,
-    );
+  //   const eventsInPeriod = await this.eventsService.getAllEventsInPeriod(
+  //     domain.id,
+  //     query,
+  //   );
 
-    return {
-      ...domain,
-      eventsInPeriod,
-    };
-  }
+  //   return {
+  //     ...domain,
+  //     eventsInPeriod,
+  //   };
+  // }
 
-  @Get('/domains/demo/live-visitors')
-  async getDemoLiveVisitors() {
-    const name = 'penkle.com';
+  // @Get('/domains/demo/live-visitors')
+  // async getDemoLiveVisitors() {
+  //   const name = 'penkle.com';
 
-    const domain = await this.domainsService.findUnique({
-      where: {
-        name,
-      },
-    });
+  //   const domain = await this.domainsService.findUnique({
+  //     where: {
+  //       name,
+  //     },
+  //   });
 
-    if (!domain) {
-      throw new NotFoundException('Domain not found');
-    }
+  //   if (!domain) {
+  //     throw new NotFoundException('Domain not found');
+  //   }
 
-    const liveVisitors = await this.eventsService.getLiveVisitors(domain.id);
+  //   const liveVisitors = await this.eventsService.getLiveVisitors(domain.id);
 
-    return {
-      liveVisitors,
-    };
-  }
+  //   return {
+  //     liveVisitors,
+  //   };
+  // }
 
-  @Get('/domains/demo/:type')
-  async getDemoDomainInfo(
-    @Param('type') type: string,
-    @Query() query: FilterEventsDto,
-  ) {
-    const name = 'penkle.com';
+  // @Get('/domains/demo/:type')
+  // async getDemoDomainInfo(
+  //   @Param('type') type: string,
+  //   @Query() query: FilterEventsDto,
+  // ) {
+  //   const name = 'penkle.com';
 
-    query.period ||= 'week';
-    query.interval ||= 'day';
-    query.date ||= dayjs().toISOString();
+  //   query.period ||= 'week';
+  //   query.interval ||= 'day';
+  //   query.date ||= dayjs().toISOString();
 
-    const domain = await this.domainsService.findUnique({
-      where: {
-        name,
-      },
-    });
+  //   const domain = await this.domainsService.findUnique({
+  //     where: {
+  //       name,
+  //     },
+  //   });
 
-    if (!domain) {
-      throw new NotFoundException('Domain not found');
-    }
+  //   if (!domain) {
+  //     throw new NotFoundException('Domain not found');
+  //   }
 
-    switch (type) {
-      case 'referrers':
-        return this.eventsService.getAllReferrersInPeriod(domain.id, query);
-      case 'pages':
-        return this.eventsService.getAllPagesInPeriod(domain.id, query);
-      case 'countries':
-        return this.eventsService.getAllCountriesInPeriod(domain.id, query);
-      case 'os':
-        return this.eventsService.getAllOsInPeriod(domain.id, query);
-      case 'browsers':
-        return this.eventsService.getAllBrowsersInPeriod(domain.id, query);
-      default:
-        throw new BadRequestException('Invalid type');
-    }
-  }
+  //   switch (type) {
+  //     case 'referrers':
+  //       return this.eventsService.getAllReferrersInPeriod(domain.id, query);
+  //     case 'pages':
+  //       return this.eventsService.getAllPagesInPeriod(domain.id, query);
+  //     case 'countries':
+  //       return this.eventsService.getAllCountriesInPeriod(domain.id, query);
+  //     case 'os':
+  //       return this.eventsService.getAllOsInPeriod(domain.id, query);
+  //     case 'browsers':
+  //       return this.eventsService.getAllBrowsersInPeriod(domain.id, query);
+  //     default:
+  //       throw new BadRequestException('Invalid type');
+  //   }
+  // }
 
   @UseGuards(AuthGuard)
   @Get('/domains/:name')
-  async findOneDomain(
-    @Req() req: Request,
-    @Param('name') name: string,
-    @Query() query: FilterEventsDto,
-  ) {
-    query.period ||= 'week';
-    query.interval ||= 'day';
-    query.date ||= dayjs().toISOString();
-
+  async findOneDomain(@Req() req: Request, @Param('name') name: string) {
     const domain = await this.domainsService.findUnique({
       // TODO: Make sure this only returns the domain if it belongs to the user
       where: {
@@ -315,15 +307,7 @@ export class GatewayController {
       },
     });
 
-    const eventsInPeriod = await this.eventsService.getAllEventsInPeriod(
-      domain.id,
-      query,
-    );
-
-    return {
-      ...domain,
-      eventsInPeriod,
-    };
+    return domain;
   }
 
   @UseGuards(AuthGuard)
@@ -349,15 +333,14 @@ export class GatewayController {
   }
 
   @UseGuards(AuthGuard)
-  @Get('/domains/:name/:type')
-  async getDomainInfo(
+  @Get('/domains/:name/timeseries/:type')
+  async timeseries(
     @Req() req: Request,
     @Param('name') name: string,
     @Param('type') type: string,
     @Query() query: FilterEventsDto,
   ) {
-    query.period ||= 'week';
-    query.interval ||= 'day';
+    query.period ||= '7d';
     query.date ||= dayjs().toISOString();
 
     const domain = await this.domainsService.findUnique({
@@ -375,17 +358,79 @@ export class GatewayController {
       throw new NotFoundException('Domain not found');
     }
 
+    if (type === 'visits') {
+      console.log({
+        eventsInPeriod: await this.eventsService.timeseries(domain.id, query),
+      });
+      console.log(await this.eventsService.getTimeseries(domain.id, query));
+    }
+
     switch (type) {
+      case 'visits':
+        return this.eventsService.getTimeseries(domain.id, query);
+      default:
+        throw new BadRequestException('Invalid type');
+    }
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('/domains/:name/:type')
+  async getDomainInfo(
+    @Req() req: Request,
+    @Param('name') name: string,
+    @Param('type') type: string,
+    @Query() query: FilterEventsDto,
+  ) {
+    query.period ||= '7d';
+    query.date ||= dayjs().toISOString();
+
+    const domain = await this.domainsService.findUnique({
+      where: {
+        name,
+        users: {
+          some: {
+            userId: req['user'].sub,
+          },
+        },
+      },
+    });
+
+    if (!domain) {
+      throw new NotFoundException('Domain not found');
+    }
+
+    if (type === 'timeseries') {
+      console.log({
+        eventsInPeriod: await this.eventsService.timeseries(domain.id, query),
+      });
+      console.log(await this.eventsService.getTimeseries(domain.id, query));
+    }
+
+    switch (type) {
+      case 'timeseries':
+        return {
+          eventsInPeriod: await this.eventsService.timeseries(domain.id, query),
+        };
       case 'referrers':
-        return this.eventsService.getAllReferrersInPeriod(domain.id, query);
+        return query.new
+          ? this.eventsService.getReferrers(domain.id, query)
+          : this.eventsService.getAllReferrersInPeriod(domain.id, query);
       case 'pages':
-        return this.eventsService.getAllPagesInPeriod(domain.id, query);
+        return query.new
+          ? this.eventsService.getPages(domain.id, query)
+          : this.eventsService.getAllPagesInPeriod(domain.id, query);
       case 'countries':
-        return this.eventsService.getAllCountriesInPeriod(domain.id, query);
-      case 'os':
-        return this.eventsService.getAllOsInPeriod(domain.id, query);
+        return query.new
+          ? this.eventsService.getCountries(domain.id, query)
+          : this.eventsService.getAllCountriesInPeriod(domain.id, query);
       case 'browsers':
-        return this.eventsService.getAllBrowsersInPeriod(domain.id, query);
+        return query.new
+          ? this.eventsService.getBrowsers(domain.id, query)
+          : this.eventsService.getAllBrowsersInPeriod(domain.id, query);
+      case 'os':
+        return query.new
+          ? this.eventsService.getOs(domain.id, query)
+          : this.eventsService.getAllOsInPeriod(domain.id, query);
       default:
         throw new BadRequestException('Invalid type');
     }
@@ -500,15 +545,10 @@ export class GatewayController {
         maxViews,
       });
 
-      throw new BadRequestException('Monthly limit exceeded');
+      // throw new BadRequestException('Monthly limit exceeded');
     }
 
     const ua = request.headers['user-agent'];
-
-    if (isbot(ua)) {
-      throw new BadRequestException('Bot detected');
-    }
-
     const host = new URL(createEventDto.h).host;
 
     if (host !== createEventDto.d.toLowerCase()) {

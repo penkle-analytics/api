@@ -6,6 +6,7 @@ import { DomainsModule } from 'src/domains/domains.module';
 import { EventsModule } from 'src/events/events.module';
 import { SubscriptionsModule } from 'src/subscriptions/subscriptions.module';
 import { SessionsModule } from 'src/sessions/sessions.module';
+import { TinybirdModule } from 'src/tinybird/tinybird.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { SessionsModule } from 'src/sessions/sessions.module';
     SessionsModule,
     EventsModule,
     SubscriptionsModule,
+    TinybirdModule,
   ],
   controllers: [GatewayController],
 })
