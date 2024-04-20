@@ -320,9 +320,33 @@ export class GatewayController {
       query,
     );
 
+    const eventsInMonth = await this.eventsService.count({
+      where: {
+        domain: {
+          id: domain.id,
+        },
+        createdAt: {
+          gte: dayjs().startOf('month').toDate(),
+          lte: dayjs().endOf('month').toDate(),
+        },
+      },
+    });
+
+    const subscription =
+      await this.subscriptionsService.findSubscriptionByUserId(req['user'].sub);
+
+    let maxViews = FREE_PLAN_VIEW_LIMIT;
+
+    if (subscription) {
+      maxViews = plans[subscription.subscriptionPlan].maxViews;
+    }
+
+    const hasExceededLimit = eventsInMonth >= maxViews;
+
     return {
       ...domain,
       eventsInPeriod,
+      hasExceededLimit,
     };
   }
 
