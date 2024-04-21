@@ -373,6 +373,35 @@ export class GatewayController {
   }
 
   @UseGuards(AuthGuard)
+  @Get('/domains/:name/timeseries')
+  async getTimeseries(
+    @Req() req: Request,
+    @Param('name') name: string,
+    @Query() query: FilterEventsDto,
+  ) {
+    query.period ||= 'week';
+    query.interval ||= 'day';
+    query.date ||= dayjs().toISOString();
+
+    const domain = await this.domainsService.findUnique({
+      where: {
+        name,
+        users: {
+          some: {
+            userId: req['user'].sub,
+          },
+        },
+      },
+    });
+
+    if (!domain) {
+      throw new NotFoundException('Domain not found');
+    }
+
+    return this.eventsService.getAllEventsInPeriod(domain.id, query);
+  }
+
+  @UseGuards(AuthGuard)
   @Get('/domains/:name/:type')
   async getDomainInfo(
     @Req() req: Request,
