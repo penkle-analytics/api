@@ -303,8 +303,6 @@ export class EventsService {
 
     // console.timeEnd('getAllReferrersInPeriod');
 
-    console.log(events);
-
     return events.sort((a, b) => b.value - a.value);
   }
 

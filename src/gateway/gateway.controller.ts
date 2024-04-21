@@ -234,7 +234,7 @@ export class GatewayController {
     };
   }
 
-  @Get('/domains/demo/live-visitors')
+  @Get('/domains/penkle.com/live-visitors')
   async getDemoLiveVisitors() {
     const name = 'penkle.com';
 
@@ -253,6 +253,27 @@ export class GatewayController {
     return {
       liveVisitors,
     };
+  }
+
+  @Get('/domains/penkle.com/timeseries')
+  async getDemoTimeseries(@Query() query: FilterEventsDto) {
+    const name = 'penkle.com';
+
+    query.period ||= 'week';
+    query.interval ||= 'day';
+    query.date ||= dayjs().toISOString();
+
+    const domain = await this.domainsService.findUnique({
+      where: {
+        name,
+      },
+    });
+
+    if (!domain) {
+      throw new NotFoundException('Domain not found');
+    }
+
+    return this.eventsService.getAllEventsInPeriod(domain.id, query);
   }
 
   @Get('/domains/demo/:type')
