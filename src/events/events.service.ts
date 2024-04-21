@@ -8,6 +8,7 @@ import * as dayjs from 'dayjs';
 import { createHmac } from 'crypto';
 import { FilterEventsDto } from './dto/filter-events.dto';
 import { objectKeys } from 'src/utils/object-keys';
+import { referrers } from 'src/data/referrers';
 
 @Injectable()
 export class EventsService {
@@ -98,7 +99,7 @@ export class EventsService {
         },
         ...(filters?.referrer && {
           referrer:
-            filters.referrer === 'Direct / None'
+            filters.referrer === 'Direct / None' || filters.referrer === 'null'
               ? null
               : {
                   startsWith: filters.referrer,
@@ -186,6 +187,7 @@ export class EventsService {
     const events: {
       label: string;
       value: number;
+      href: string | null;
     }[] = [];
 
     if (filters.referrer !== 'Direct / None') {
@@ -199,7 +201,12 @@ export class EventsService {
           },
           ...(filters?.referrer && {
             referrer:
-              filters.referrer === 'Direct / None' ? null : filters.referrer,
+              filters.referrer === 'Direct / None' ||
+              filters.referrer === 'null'
+                ? null
+                : {
+                    startsWith: filters.referrer,
+                  },
           }),
           ...(filters?.page && { href: { contains: filters.page } }),
           ...(filters?.country && { country: filters.country }),
@@ -222,44 +229,81 @@ export class EventsService {
         }
 
         const value = event._count.referrer;
+        const referrerDomain = new URL(event.referrer).hostname
+          .split('.')
+          .slice(-2)
+          .join('.');
 
         if (event.referrer.includes('linkedin')) {
+          if (events.find((v) => v.label === 'LinkedIn')) {
+            events.find((v) => v.label === 'LinkedIn').value += value;
+            continue;
+          }
+
           events.push({
             label: 'LinkedIn',
             value,
+            href: 'https://linkedin.com',
+          });
+        } else if (referrers[referrerDomain]) {
+          if (events.find((v) => v.label === referrers[referrerDomain])) {
+            events.find((v) => v.label === referrers[referrerDomain]).value +=
+              value;
+            continue;
+          }
+
+          events.push({
+            label: referrers[referrerDomain],
+            value,
+            href: new URL(event.referrer).origin,
           });
         } else {
+          if (
+            events.find((v) => v.label === new URL(event.referrer).hostname)
+          ) {
+            events.find(
+              (v) => v.label === new URL(event.referrer).hostname,
+            ).value += value;
+            continue;
+          }
+
           events.push({
-            label: event.referrer,
+            label: new URL(event.referrer).hostname,
             value,
+            href: new URL(event.referrer).origin,
           });
         }
       }
     }
 
-    const eventCountWithoutReferrer = await this.dbService.event.count({
-      where: {
-        domainId,
-        createdAt: {
-          gte: dayjs(filters.date).subtract(1, filters.period).toDate(),
-          lte: dayjs(filters.date).toDate(),
+    if (!('referrer' in filters) || filters.referrer === 'Direct / None') {
+      const eventCountWithoutReferrer = await this.dbService.event.count({
+        where: {
+          domainId,
+          createdAt: {
+            gte: dayjs(filters.date).subtract(1, filters.period).toDate(),
+            lte: dayjs(filters.date).toDate(),
+          },
+          referrer: null,
+          ...(filters?.page && { href: { contains: filters.page } }),
+          ...(filters?.country && { country: filters.country }),
+          ...(filters?.os && { os: filters.os }),
+          ...(filters?.browser && { browser: filters.browser }),
         },
-        referrer: null,
-        ...(filters?.page && { href: { contains: filters.page } }),
-        ...(filters?.country && { country: filters.country }),
-        ...(filters?.os && { os: filters.os }),
-        ...(filters?.browser && { browser: filters.browser }),
-      },
-    });
-
-    if (eventCountWithoutReferrer > 0) {
-      events.push({
-        label: 'Direct / None',
-        value: eventCountWithoutReferrer,
       });
+
+      if (eventCountWithoutReferrer > 0) {
+        events.push({
+          label: 'Direct / None',
+          value: eventCountWithoutReferrer,
+          href: null,
+        });
+      }
     }
 
     // console.timeEnd('getAllReferrersInPeriod');
+
+    console.log(events);
 
     return events.sort((a, b) => b.value - a.value);
   }
@@ -277,7 +321,7 @@ export class EventsService {
         },
         ...(filters?.referrer && {
           referrer:
-            filters.referrer === 'Direct / None'
+            filters.referrer === 'Direct / None' || filters.referrer === 'null'
               ? null
               : {
                   startsWith: filters.referrer,
@@ -300,10 +344,23 @@ export class EventsService {
 
     // console.timeEnd('getAllPagesInPeriod');
 
-    return eventsByPage.map((event) => ({
-      label: new URL(event.href).pathname,
-      value: event._count.href,
-    }));
+    return eventsByPage
+      .reduce((acc, event) => {
+        const pathname = new URL(event.href).pathname;
+
+        if (acc.find((v) => v.label === pathname)) {
+          acc.find((v) => v.label === pathname).value += event._count.href;
+          return acc;
+        }
+
+        acc.push({
+          label: pathname,
+          value: event._count.href,
+        });
+
+        return acc;
+      }, [])
+      .sort((a, b) => b.value - a.value);
   }
 
   async getAllCountriesInPeriod(domainId: string, filters: FilterEventsDto) {
@@ -319,7 +376,7 @@ export class EventsService {
         },
         ...(filters?.referrer && {
           referrer:
-            filters.referrer === 'Direct / None'
+            filters.referrer === 'Direct / None' || filters.referrer === 'null'
               ? null
               : {
                   startsWith: filters.referrer,
@@ -361,7 +418,7 @@ export class EventsService {
         },
         ...(filters?.referrer && {
           referrer:
-            filters.referrer === 'Direct / None'
+            filters.referrer === 'Direct / None' || filters.referrer === 'null'
               ? null
               : {
                   startsWith: filters.referrer,
@@ -403,7 +460,7 @@ export class EventsService {
         },
         ...(filters?.referrer && {
           referrer:
-            filters.referrer === 'Direct / None'
+            filters.referrer === 'Direct / None' || filters.referrer === 'null'
               ? null
               : {
                   startsWith: filters.referrer,
