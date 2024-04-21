@@ -40,6 +40,7 @@ import { CreateBillingPortalSessionDto } from 'src/subscriptions/dto/create-bill
 import { ChangeSubscriptionPlanDto } from 'src/subscriptions/dto/change-subscription-plan.dto';
 import { FREE_PLAN_VIEW_LIMIT, plans } from 'src/config/stripe';
 import { SessionsService } from 'src/sessions/sessions.service';
+import { hasSubscribers } from 'diagnostics_channel';
 
 declare global {
   namespace Express {
@@ -221,20 +222,15 @@ export class GatewayController {
     query.date ||= dayjs().toISOString();
 
     const domain = await this.domainsService.findUnique({
-      // TODO: Make sure this only returns the domain if it belongs to the user
+      // Make sure this only returns the domain if it belongs to the user
       where: {
         name,
       },
     });
 
-    const eventsInPeriod = await this.eventsService.getAllEventsInPeriod(
-      domain.id,
-      query,
-    );
-
     return {
       ...domain,
-      eventsInPeriod,
+      hasExceededLimit: false,
     };
   }
 
@@ -315,11 +311,6 @@ export class GatewayController {
       },
     });
 
-    const eventsInPeriod = await this.eventsService.getAllEventsInPeriod(
-      domain.id,
-      query,
-    );
-
     const eventsInMonth = await this.eventsService.count({
       where: {
         domain: {
@@ -341,12 +332,9 @@ export class GatewayController {
       maxViews = plans[subscription.subscriptionPlan].maxViews;
     }
 
-    const hasExceededLimit = eventsInMonth >= maxViews;
-
     return {
       ...domain,
-      eventsInPeriod,
-      hasExceededLimit,
+      hasExceededLimit: eventsInMonth >= maxViews,
     };
   }
 
