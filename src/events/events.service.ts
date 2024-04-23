@@ -488,7 +488,8 @@ export class EventsService {
   }
 
   getLiveVisitors(domainId: string) {
-    return this.dbService.event.count({
+    return this.dbService.event
+      .findMany({
       where: {
         domain: {
           id: domainId,
@@ -497,7 +498,9 @@ export class EventsService {
           gte: dayjs().subtract(1, 'minute').toDate(),
         },
       },
-    });
+        distinct: ['uniqueVisitorId'],
+      })
+      .then((events) => events.length);
   }
 
   findAll(data: Prisma.EventFindManyArgs) {
