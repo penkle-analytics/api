@@ -12,6 +12,7 @@ import { DomainsModule } from './domains/domains.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { SessionsModule } from './sessions/sessions.module';
+import { GeoModule } from './geo/geo.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { SessionsModule } from './sessions/sessions.module';
     WebhooksModule,
     SubscriptionsModule,
     SessionsModule,
+    GeoModule,
   ],
   controllers: [AppController],
   providers: [AppService],

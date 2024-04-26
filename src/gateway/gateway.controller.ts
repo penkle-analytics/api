@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
@@ -14,6 +15,7 @@ import {
   Query,
   Req,
   Res,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { AuthService } from 'src/auth/auth.service';
@@ -217,9 +219,8 @@ export class GatewayController {
   async getDemoDomain(@Query() query: FilterEventsDto) {
     const name = 'penkle.com';
 
-    query.period ||= 'week';
-    query.interval ||= 'day';
-    query.date ||= dayjs().toISOString();
+    query.period ||= '7d';
+    query.date ||= dayjs.utc().toISOString();
 
     const domain = await this.domainsService.findUnique({
       // Make sure this only returns the domain if it belongs to the user
@@ -259,9 +260,8 @@ export class GatewayController {
   async getDemoTimeseries(@Query() query: FilterEventsDto) {
     const name = 'penkle.com';
 
-    query.period ||= 'week';
-    query.interval ||= 'day';
-    query.date ||= dayjs().toISOString();
+    query.period ||= '7d';
+    query.date ||= dayjs.utc().toISOString();
 
     const domain = await this.domainsService.findUnique({
       where: {
@@ -273,7 +273,7 @@ export class GatewayController {
       throw new NotFoundException('Domain not found');
     }
 
-    return this.eventsService.getAllEventsInPeriod(domain.id, query);
+    return this.eventsService.timeseries(domain.id, query);
   }
 
   @Get('/domains/demo/:type')
@@ -283,9 +283,8 @@ export class GatewayController {
   ) {
     const name = 'penkle.com';
 
-    query.period ||= 'week';
-    query.interval ||= 'day';
-    query.date ||= dayjs().toISOString();
+    query.period ||= '7d';
+    query.date ||= dayjs.utc().toISOString();
 
     const domain = await this.domainsService.findUnique({
       where: {
@@ -320,9 +319,8 @@ export class GatewayController {
     @Param('name') name: string,
     @Query() query: FilterEventsDto,
   ) {
-    query.period ||= 'week';
-    query.interval ||= 'day';
-    query.date ||= dayjs().toISOString();
+    query.period ||= '7d';
+    query.date ||= dayjs.utc().toISOString();
 
     const domain = await this.domainsService.findUnique({
       // TODO: Make sure this only returns the domain if it belongs to the user
@@ -386,11 +384,20 @@ export class GatewayController {
   async getTimeseries(
     @Req() req: Request,
     @Param('name') name: string,
-    @Query() query: FilterEventsDto,
+    @Query() filters: FilterEventsDto,
   ) {
-    query.period ||= 'week';
-    query.interval ||= 'day';
-    query.date ||= dayjs().toISOString();
+    filters.period ||= '7d';
+    filters.date ||= dayjs.utc().toISOString();
+
+    const subscription = this.subscriptionsService.findSubscriptionByUserId(
+      req['user'].sub,
+    );
+
+    if (filters.period === 'y' && !subscription) {
+      throw new ForbiddenException(
+        'Premium subscription required for yearly data',
+      );
+    }
 
     const domain = await this.domainsService.findUnique({
       where: {
@@ -407,7 +414,7 @@ export class GatewayController {
       throw new NotFoundException('Domain not found');
     }
 
-    return this.eventsService.getAllEventsInPeriod(domain.id, query);
+    return this.eventsService.timeseries(domain.id, filters);
   }
 
   @UseGuards(AuthGuard)
@@ -418,9 +425,8 @@ export class GatewayController {
     @Param('type') type: string,
     @Query() query: FilterEventsDto,
   ) {
-    query.period ||= 'week';
-    query.interval ||= 'day';
-    query.date ||= dayjs().toISOString();
+    query.period ||= '7d';
+    query.date ||= dayjs.utc().toISOString();
 
     const domain = await this.domainsService.findUnique({
       where: {

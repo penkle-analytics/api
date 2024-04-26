@@ -1,27 +1,44 @@
 import { Injectable } from '@nestjs/common';
-import { DbService } from 'src/db/db.service';
 import { EventType, Prisma } from '@prisma/client';
-import { CreateEventDto } from './dto/create-event.dto';
-import * as geoip from 'geoip-lite';
-import * as uaParser from 'ua-parser-js';
+import { createHmac, randomBytes } from 'crypto';
 import * as dayjs from 'dayjs';
-import { createHmac } from 'crypto';
-import { FilterEventsDto } from './dto/filter-events.dto';
-import { objectKeys } from 'src/utils/object-keys';
+import * as utc from 'dayjs/plugin/utc';
+import * as geoip from 'geoip-lite';
+import { isbot } from 'isbot';
 import { referrers } from 'src/data/referrers';
+import { DbService } from 'src/db/db.service';
+import { GeoService } from 'src/geo/geo.service';
+import { objectKeys } from 'src/utils/object-keys';
+import * as uaParser from 'ua-parser-js';
+import { CreateEventDto } from './dto/create-event.dto';
+import { FilterEventsDto, Period } from './dto/filter-events.dto';
+import { getTimes } from './utils/get-times';
+
+dayjs.extend(utc);
+
+export const periodIntervalMapping: Record<Period, 'h' | 'd' | 'w' | 'M'> = {
+  d: 'h',
+  '7d': 'd',
+  '30d': 'd',
+  m: 'd',
+  y: 'M',
+};
 
 @Injectable()
 export class EventsService {
-  constructor(private readonly dbService: DbService) {}
+  constructor(
+    private readonly dbService: DbService,
+    private readonly geoService: GeoService,
+  ) {}
 
-  create(
+  async create(
     createEventDto: CreateEventDto,
     meta: {
       ip: string;
       ua: string;
     },
   ) {
-    const geo = geoip.lookup(meta.ip);
+    const geo = await this.geoService.geo(meta.ip);
     const parsed = uaParser(meta.ua);
 
     const device: 'Mobile' | 'Tablet' | 'Desktop' =
@@ -31,15 +48,17 @@ export class EventsService {
         ? 'Tablet'
         : 'Desktop';
 
-    const country = new Intl.DisplayNames(['en'], { type: 'region' }).of(
-      geo?.country,
-    );
-
     const utm: {
       utmSource?: string | null;
       utmMedium?: string | null;
       utmCampaign?: string | null;
     } = {};
+
+    // const domain = await this.dbService.domain.findUnique({
+    //   where: {
+    //     name: createEventDto.d.toLowerCase(),
+    //   },
+    // });
 
     try {
       const url = new URL(createEventDto.h);
@@ -52,6 +71,119 @@ export class EventsService {
       console.error('Failed to parse URL', error);
     }
 
+    // try {
+    //   const res = await this.tbService.injectEvents({
+    //     timestamp: dayjs().toISOString().replace('T', ' ').replace('Z', ''),
+    //     event_id: randomBytes(16).toString('hex'),
+    //     domain_id: domain.id,
+    //     unique_visitor_id: this.createUniqueVisitorId(
+    //       createEventDto.d.toLowerCase(),
+    //       meta.ip,
+    //       meta.ua,
+    //     ),
+    //     type: createEventDto.n,
+    //     href: createEventDto.h,
+    //     country: geo.country || 'Unknown',
+    //     country_code: geo.countryCode || 'Unknown',
+    //     city: geo.city || 'Unknown',
+    //     region: geo.regionName || 'Unknown',
+    //     latitude: geo.lat?.toString() || 'Unknown',
+    //     longitude: geo.lon?.toString() || 'Unknown',
+    //     ua: meta.ua,
+    //     browser: parsed.browser.name || 'Unknown',
+    //     browser_version: parsed.browser.version || 'Unknown',
+    //     engine: parsed.engine.name || 'Unknown',
+    //     engine_version: parsed.engine.version || 'Unknown',
+    //     os: parsed.os.name || 'Unknown',
+    //     os_version: parsed.os.version || 'Unknown',
+    //     device: parsed.device.type || 'Unknown',
+    //     device_vendor: parsed.device.vendor || 'Unknown',
+    //     device_model: parsed.device.model || 'Unknown',
+    //     cpu_architecture: parsed.cpu.architecture || 'Unknown',
+    //     bot: isbot(meta.ua) ? 1 : 0,
+    //     referrer: createEventDto.r || 'None',
+    //     referrer_url: createEventDto.r || 'None',
+    //     utm_source: utm.utmSource || 'None',
+    //     utm_medium: utm.utmMedium || 'None',
+    //     utm_campaign: utm.utmCampaign || 'None',
+    //   });
+
+    //   console.log(
+    //     {
+    //       timestamp: dayjs().toISOString().replace('T', ' ').replace('Z', ''),
+    //       event_id: randomBytes(16).toString('hex'),
+    //       domain_id: domain.id,
+    //       unique_visitor_id: this.createUniqueVisitorId(
+    //         createEventDto.d.toLowerCase(),
+    //         meta.ip,
+    //         meta.ua,
+    //       ),
+    //       type: createEventDto.n,
+    //       href: createEventDto.h,
+    //       country: geo.country || 'Unknown',
+    //       country_code: geo.countryCode || 'Unknown',
+    //       city: geo.city || 'Unknown',
+    //       region: geo.regionName || 'Unknown',
+    //       latitude: geo.lat?.toString() || 'Unknown',
+    //       longitude: geo.lon?.toString() || 'Unknown',
+    //       ua: meta.ua,
+    //       browser: parsed.browser.name || 'Unknown',
+    //       browser_version: parsed.browser.version || 'Unknown',
+    //       engine: parsed.engine.name || 'Unknown',
+    //       engine_version: parsed.engine.version || 'Unknown',
+    //       os: parsed.os.name || 'Unknown',
+    //       os_version: parsed.os.version || 'Unknown',
+    //       device: parsed.device.type || 'Unknown',
+    //       device_vendor: parsed.device.vendor || 'Unknown',
+    //       device_model: parsed.device.model || 'Unknown',
+    //       cpu_architecture: parsed.cpu.architecture || 'Unknown',
+    //       bot: isbot(meta.ua) ? 1 : 0,
+    //       referrer: createEventDto.r || 'None',
+    //       referrer_url: createEventDto.r || 'None',
+    //       utm_source: utm.utmSource || 'None',
+    //       utm_medium: utm.utmMedium || 'None',
+    //       utm_campaign: utm.utmCampaign || 'None',
+    //     },
+    //     res,
+    //   );
+    // } catch (error) {
+    //   console.log('Failed to inject event into Tinybird', error, {
+    //     timestamp: dayjs().toISOString().replace('T', ' ').replace('Z', ''),
+    //     event_id: randomBytes(16).toString('hex'),
+    //     domain_id: domain.id,
+    //     unique_visitor_id: this.createUniqueVisitorId(
+    //       createEventDto.d.toLowerCase(),
+    //       meta.ip,
+    //       meta.ua,
+    //     ),
+    //     type: createEventDto.n,
+    //     href: createEventDto.h,
+    //     country: geo.country || 'Unknown',
+    //     country_code: geo.countryCode || 'Unknown',
+    //     city: geo.city || 'Unknown',
+    //     region: geo.regionName || 'Unknown',
+    //     latitude: geo.lat?.toString() || 'Unknown',
+    //     longitude: geo.lon?.toString() || 'Unknown',
+    //     ua: meta.ua,
+    //     browser: parsed.browser.name || 'Unknown',
+    //     browser_version: parsed.browser.version || 'Unknown',
+    //     engine: parsed.engine.name || 'Unknown',
+    //     engine_version: parsed.engine.version || 'Unknown',
+    //     os: parsed.os.name || 'Unknown',
+    //     os_version: parsed.os.version || 'Unknown',
+    //     device: parsed.device.type || 'Unknown',
+    //     device_vendor: parsed.device.vendor || 'Unknown',
+    //     device_model: parsed.device.model || 'Unknown',
+    //     cpu_architecture: parsed.cpu.architecture || 'Unknown',
+    //     bot: isbot(meta.ua) ? 1 : 0,
+    //     referrer: createEventDto.r || 'None',
+    //     referrer_url: createEventDto.r || 'None',
+    //     utm_source: utm.utmSource || 'None',
+    //     utm_medium: utm.utmMedium || 'None',
+    //     utm_campaign: utm.utmCampaign || 'None',
+    //   });
+    // }
+
     return this.dbService.event.create({
       data: {
         uniqueVisitorId: this.createUniqueVisitorId(
@@ -62,8 +194,8 @@ export class EventsService {
         type: createEventDto.n,
         href: createEventDto.h,
         referrer: createEventDto.r,
-        country,
-        countryCode: geo?.country,
+        country: geo?.country,
+        countryCode: geo?.countryCode,
         browser: parsed.browser.name,
         os: parsed.os.name,
         device,
@@ -81,11 +213,10 @@ export class EventsService {
     return this.dbService.event.count(data);
   }
 
-  async getAllEventsInPeriod(domainId: string, filters: FilterEventsDto) {
-    const from = dayjs(filters.date).subtract(1, filters.period).toDate();
-    const to = dayjs(filters.date).toDate();
+  async timeseries(domainId: string, filters: FilterEventsDto) {
+    const { to, from } = getTimes(filters);
 
-    // console.time('getAllEventsInPeriod');
+    // console.time('timeseries:db');
 
     const eventsData = await this.findAll({
       where: {
@@ -99,7 +230,7 @@ export class EventsService {
         },
         ...(filters?.referrer && {
           referrer:
-            filters.referrer === 'Direct / None' || filters.referrer === 'null'
+            filters.referrer === 'null'
               ? null
               : {
                   startsWith: filters.referrer,
@@ -110,9 +241,26 @@ export class EventsService {
         ...(filters?.os && { os: filters.os }),
         ...(filters?.browser && { browser: filters.browser }),
       },
+      select: {
+        sessionId: true,
+        createdAt: true,
+        type: true,
+        uniqueVisitorId: true,
+      },
     });
 
-    const dataPoints = dayjs(to).diff(from, filters.interval) + 1;
+    // console.timeEnd('timeseries:db');
+
+    // console.time('timeseries:processing');
+
+    // number of data points on chart (12 for year, 7 for week. dynamic for month)
+    const dataPoints =
+      filters.period === 'm'
+        ? dayjs(from).daysInMonth()
+        : dayjs(to).diff(
+            from,
+            periodIntervalMapping[filters.period as Period],
+          ) + 1;
 
     const eventsInPeriod: {
       date: Date;
@@ -124,9 +272,17 @@ export class EventsService {
     }[] = [];
 
     for (let i = 0; i < dataPoints; i++) {
-      const date = dayjs(to).subtract(i, filters.interval).toDate();
+      const date = dayjs
+        .utc(to)
+        .subtract(i, periodIntervalMapping[filters.period as Period])
+        .startOf(periodIntervalMapping[filters.period as Period])
+        .toDate();
+
       const eventsForInterval = eventsData.filter((event) =>
-        dayjs(event.createdAt).isSame(date, filters.interval),
+        dayjs(event.createdAt).isSame(
+          date,
+          periodIntervalMapping[filters.period as Period],
+        ),
       );
 
       let sessionEventCount: Record<string, number> = {};
@@ -176,12 +332,14 @@ export class EventsService {
       });
     }
 
-    // console.timeEnd('getAllEventsInPeriod');
+    // console.timeEnd('timeseries:processing');
 
     return eventsInPeriod.reverse();
   }
 
   async getAllReferrersInPeriod(domainId: string, filters: FilterEventsDto) {
+    const { to, from } = getTimes(filters);
+
     // console.time('getAllReferrersInPeriod');
 
     const events: {
@@ -196,12 +354,11 @@ export class EventsService {
         where: {
           domainId,
           createdAt: {
-            gte: dayjs(filters.date).subtract(1, filters.period).toDate(),
-            lte: dayjs(filters.date).toDate(),
+            gte: from,
+            lte: to,
           },
           ...(filters?.referrer && {
             referrer:
-              filters.referrer === 'Direct / None' ||
               filters.referrer === 'null'
                 ? null
                 : {
@@ -281,8 +438,8 @@ export class EventsService {
         where: {
           domainId,
           createdAt: {
-            gte: dayjs(filters.date).subtract(1, filters.period).toDate(),
-            lte: dayjs(filters.date).toDate(),
+            gte: from,
+            lte: to,
           },
           referrer: null,
           ...(filters?.page && { href: { contains: filters.page } }),
@@ -307,6 +464,8 @@ export class EventsService {
   }
 
   async getAllPagesInPeriod(domainId: string, filters: FilterEventsDto) {
+    const { to, from } = getTimes(filters);
+
     // console.time('getAllPagesInPeriod');
 
     const eventsByPage = await this.dbService.event.groupBy({
@@ -314,12 +473,12 @@ export class EventsService {
       where: {
         domainId,
         createdAt: {
-          gte: dayjs(filters.date).subtract(1, filters.period).toDate(),
-          lte: dayjs(filters.date).toDate(),
+          gte: from,
+          lte: to,
         },
         ...(filters?.referrer && {
           referrer:
-            filters.referrer === 'Direct / None' || filters.referrer === 'null'
+            filters.referrer === 'null'
               ? null
               : {
                   startsWith: filters.referrer,
@@ -362,6 +521,8 @@ export class EventsService {
   }
 
   async getAllCountriesInPeriod(domainId: string, filters: FilterEventsDto) {
+    const { to, from } = getTimes(filters);
+
     // console.time('getAllCountriesInPeriod');
 
     const eventsByCountry = await this.dbService.event.groupBy({
@@ -369,12 +530,12 @@ export class EventsService {
       where: {
         domainId,
         createdAt: {
-          gte: dayjs(filters.date).subtract(1, filters.period).toDate(),
-          lte: dayjs(filters.date).toDate(),
+          gte: from,
+          lte: to,
         },
         ...(filters?.referrer && {
           referrer:
-            filters.referrer === 'Direct / None' || filters.referrer === 'null'
+            filters.referrer === 'null'
               ? null
               : {
                   startsWith: filters.referrer,
@@ -404,6 +565,8 @@ export class EventsService {
   }
 
   async getAllOsInPeriod(domainId: string, filters: FilterEventsDto) {
+    const { to, from } = getTimes(filters);
+
     // console.time('getAllOsInPeriod');
 
     const eventsByOs = await this.dbService.event.groupBy({
@@ -411,12 +574,12 @@ export class EventsService {
       where: {
         domainId,
         createdAt: {
-          gte: dayjs(filters.date).subtract(1, filters.period).toDate(),
-          lte: dayjs(filters.date).toDate(),
+          gte: from,
+          lte: to,
         },
         ...(filters?.referrer && {
           referrer:
-            filters.referrer === 'Direct / None' || filters.referrer === 'null'
+            filters.referrer === 'null'
               ? null
               : {
                   startsWith: filters.referrer,
@@ -446,6 +609,8 @@ export class EventsService {
   }
 
   async getAllBrowsersInPeriod(domainId: string, filters: FilterEventsDto) {
+    const { to, from } = getTimes(filters);
+
     // console.time('getAllBrowsersInPeriod');
 
     const eventsByBrowser = await this.dbService.event.groupBy({
@@ -453,12 +618,12 @@ export class EventsService {
       where: {
         domainId,
         createdAt: {
-          gte: dayjs(filters.date).subtract(1, filters.period).toDate(),
-          lte: dayjs(filters.date).toDate(),
+          gte: from,
+          lte: to,
         },
         ...(filters?.referrer && {
           referrer:
-            filters.referrer === 'Direct / None' || filters.referrer === 'null'
+            filters.referrer === 'null'
               ? null
               : {
                   startsWith: filters.referrer,
@@ -490,14 +655,14 @@ export class EventsService {
   getLiveVisitors(domainId: string) {
     return this.dbService.event
       .findMany({
-      where: {
-        domain: {
-          id: domainId,
+        where: {
+          domain: {
+            id: domainId,
+          },
+          createdAt: {
+            gte: dayjs().subtract(1, 'minute').toDate(),
+          },
         },
-        createdAt: {
-          gte: dayjs().subtract(1, 'minute').toDate(),
-        },
-      },
         distinct: ['uniqueVisitorId'],
       })
       .then((events) => events.length);
