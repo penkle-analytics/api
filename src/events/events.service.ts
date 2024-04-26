@@ -139,6 +139,7 @@ export class EventsService {
         ...(filters?.country && { country: filters.country }),
         ...(filters?.os && { os: filters.os }),
         ...(filters?.browser && { browser: filters.browser }),
+        bot: false,
       },
       select: {
         sessionId: true,
@@ -268,6 +269,7 @@ export class EventsService {
           ...(filters?.country && { country: filters.country }),
           ...(filters?.os && { os: filters.os }),
           ...(filters?.browser && { browser: filters.browser }),
+          bot: false,
         },
         _count: {
           referrer: true,
@@ -345,6 +347,7 @@ export class EventsService {
           ...(filters?.country && { country: filters.country }),
           ...(filters?.os && { os: filters.os }),
           ...(filters?.browser && { browser: filters.browser }),
+          bot: false,
         },
       });
 
@@ -387,6 +390,7 @@ export class EventsService {
         ...(filters?.country && { country: filters.country }),
         ...(filters?.os && { os: filters.os }),
         ...(filters?.browser && { browser: filters.browser }),
+        bot: false,
       },
       _count: {
         href: true,
@@ -444,6 +448,7 @@ export class EventsService {
         ...(filters?.country && { country: filters.country }),
         ...(filters?.os && { os: filters.os }),
         ...(filters?.browser && { browser: filters.browser }),
+        bot: false,
       },
       _count: {
         country: true,
@@ -488,6 +493,7 @@ export class EventsService {
         ...(filters?.country && { country: filters.country }),
         ...(filters?.os && { os: filters.os }),
         ...(filters?.browser && { browser: filters.browser }),
+        bot: false,
       },
       _count: {
         os: true,
@@ -532,6 +538,7 @@ export class EventsService {
         ...(filters?.country && { country: filters.country }),
         ...(filters?.os && { os: filters.os }),
         ...(filters?.browser && { browser: filters.browser }),
+        bot: false,
       },
       _count: {
         browser: true,
