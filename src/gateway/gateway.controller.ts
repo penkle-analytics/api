@@ -572,11 +572,6 @@ export class GatewayController {
     }
 
     const ua = request.headers['user-agent'];
-
-    if (isbot(ua)) {
-      throw new BadRequestException('Bot detected');
-    }
-
     const host = new URL(createEventDto.h).host;
 
     if (host !== createEventDto.d.toLowerCase()) {
