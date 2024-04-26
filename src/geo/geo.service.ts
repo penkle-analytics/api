@@ -25,22 +25,12 @@ export class GeoService {
     const res = await fetch(url);
 
     if (!res.ok) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error(
-          `An error occurred fetching '${url}'\n${await res.text()}`,
-        );
-      } else if (process.env.NODE_ENV === 'production') {
-        await fetch(`https://hooks.zapier.com/hooks/catch/18624223/3n0pkre/`, {
-          method: 'POST',
-        });
-      }
+      console.error(`An error occurred fetching '${url}'\n${await res.text()}`);
 
       throw new Error('An error occurred');
     }
 
     const json = await res.json();
-
-    console.log(json);
 
     if (geoSchema.safeParse(json).success === false) {
       throw new Error('An error occurred');

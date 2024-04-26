@@ -79,16 +79,32 @@ model Event {
   id              String    @id @default(cuid())
   uniqueVisitorId String?
   type            EventType
-  href            String
+  ua              String?
+  href            String?
   referrer        String?
-  country         String
-  browser         String
-  os              String
-  countryCode     String
+  referrerUrl     String?
+  country         String?
+  countryCode     String?
+  city            String?
+  region          String?
+  latitude        String?
+  longitude       String?
+  browser         String?
+  browserVersion  String?
+  engine          String?
+  engineVersion   String?
+  os              String?
+  osVersion       String?
   device          String?
+  deviceVendor    String?
+  deviceModel     String?
+  cpuArchitecture String?
+  bot             Boolean?
   utmSource       String?
   utmMedium       String?
   utmCampaign     String?
+  utmTerm         String?
+  utmContent      String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

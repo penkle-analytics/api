@@ -52,13 +52,9 @@ export class EventsService {
       utmSource?: string | null;
       utmMedium?: string | null;
       utmCampaign?: string | null;
+      utmTerm?: string | null;
+      utmContent?: string | null;
     } = {};
-
-    // const domain = await this.dbService.domain.findUnique({
-    //   where: {
-    //     name: createEventDto.d.toLowerCase(),
-    //   },
-    // });
 
     try {
       const url = new URL(createEventDto.h);
@@ -67,122 +63,11 @@ export class EventsService {
       utm.utmSource = searchParams.get('utm_source');
       utm.utmMedium = searchParams.get('utm_medium');
       utm.utmCampaign = searchParams.get('utm_campaign');
+      utm.utmTerm = searchParams.get('utm_term');
+      utm.utmContent = searchParams.get('utm_content');
     } catch (error) {
       console.error('Failed to parse URL', error);
     }
-
-    // try {
-    //   const res = await this.tbService.injectEvents({
-    //     timestamp: dayjs().toISOString().replace('T', ' ').replace('Z', ''),
-    //     event_id: randomBytes(16).toString('hex'),
-    //     domain_id: domain.id,
-    //     unique_visitor_id: this.createUniqueVisitorId(
-    //       createEventDto.d.toLowerCase(),
-    //       meta.ip,
-    //       meta.ua,
-    //     ),
-    //     type: createEventDto.n,
-    //     href: createEventDto.h,
-    //     country: geo.country || 'Unknown',
-    //     country_code: geo.countryCode || 'Unknown',
-    //     city: geo.city || 'Unknown',
-    //     region: geo.regionName || 'Unknown',
-    //     latitude: geo.lat?.toString() || 'Unknown',
-    //     longitude: geo.lon?.toString() || 'Unknown',
-    //     ua: meta.ua,
-    //     browser: parsed.browser.name || 'Unknown',
-    //     browser_version: parsed.browser.version || 'Unknown',
-    //     engine: parsed.engine.name || 'Unknown',
-    //     engine_version: parsed.engine.version || 'Unknown',
-    //     os: parsed.os.name || 'Unknown',
-    //     os_version: parsed.os.version || 'Unknown',
-    //     device: parsed.device.type || 'Unknown',
-    //     device_vendor: parsed.device.vendor || 'Unknown',
-    //     device_model: parsed.device.model || 'Unknown',
-    //     cpu_architecture: parsed.cpu.architecture || 'Unknown',
-    //     bot: isbot(meta.ua) ? 1 : 0,
-    //     referrer: createEventDto.r || 'None',
-    //     referrer_url: createEventDto.r || 'None',
-    //     utm_source: utm.utmSource || 'None',
-    //     utm_medium: utm.utmMedium || 'None',
-    //     utm_campaign: utm.utmCampaign || 'None',
-    //   });
-
-    //   console.log(
-    //     {
-    //       timestamp: dayjs().toISOString().replace('T', ' ').replace('Z', ''),
-    //       event_id: randomBytes(16).toString('hex'),
-    //       domain_id: domain.id,
-    //       unique_visitor_id: this.createUniqueVisitorId(
-    //         createEventDto.d.toLowerCase(),
-    //         meta.ip,
-    //         meta.ua,
-    //       ),
-    //       type: createEventDto.n,
-    //       href: createEventDto.h,
-    //       country: geo.country || 'Unknown',
-    //       country_code: geo.countryCode || 'Unknown',
-    //       city: geo.city || 'Unknown',
-    //       region: geo.regionName || 'Unknown',
-    //       latitude: geo.lat?.toString() || 'Unknown',
-    //       longitude: geo.lon?.toString() || 'Unknown',
-    //       ua: meta.ua,
-    //       browser: parsed.browser.name || 'Unknown',
-    //       browser_version: parsed.browser.version || 'Unknown',
-    //       engine: parsed.engine.name || 'Unknown',
-    //       engine_version: parsed.engine.version || 'Unknown',
-    //       os: parsed.os.name || 'Unknown',
-    //       os_version: parsed.os.version || 'Unknown',
-    //       device: parsed.device.type || 'Unknown',
-    //       device_vendor: parsed.device.vendor || 'Unknown',
-    //       device_model: parsed.device.model || 'Unknown',
-    //       cpu_architecture: parsed.cpu.architecture || 'Unknown',
-    //       bot: isbot(meta.ua) ? 1 : 0,
-    //       referrer: createEventDto.r || 'None',
-    //       referrer_url: createEventDto.r || 'None',
-    //       utm_source: utm.utmSource || 'None',
-    //       utm_medium: utm.utmMedium || 'None',
-    //       utm_campaign: utm.utmCampaign || 'None',
-    //     },
-    //     res,
-    //   );
-    // } catch (error) {
-    //   console.log('Failed to inject event into Tinybird', error, {
-    //     timestamp: dayjs().toISOString().replace('T', ' ').replace('Z', ''),
-    //     event_id: randomBytes(16).toString('hex'),
-    //     domain_id: domain.id,
-    //     unique_visitor_id: this.createUniqueVisitorId(
-    //       createEventDto.d.toLowerCase(),
-    //       meta.ip,
-    //       meta.ua,
-    //     ),
-    //     type: createEventDto.n,
-    //     href: createEventDto.h,
-    //     country: geo.country || 'Unknown',
-    //     country_code: geo.countryCode || 'Unknown',
-    //     city: geo.city || 'Unknown',
-    //     region: geo.regionName || 'Unknown',
-    //     latitude: geo.lat?.toString() || 'Unknown',
-    //     longitude: geo.lon?.toString() || 'Unknown',
-    //     ua: meta.ua,
-    //     browser: parsed.browser.name || 'Unknown',
-    //     browser_version: parsed.browser.version || 'Unknown',
-    //     engine: parsed.engine.name || 'Unknown',
-    //     engine_version: parsed.engine.version || 'Unknown',
-    //     os: parsed.os.name || 'Unknown',
-    //     os_version: parsed.os.version || 'Unknown',
-    //     device: parsed.device.type || 'Unknown',
-    //     device_vendor: parsed.device.vendor || 'Unknown',
-    //     device_model: parsed.device.model || 'Unknown',
-    //     cpu_architecture: parsed.cpu.architecture || 'Unknown',
-    //     bot: isbot(meta.ua) ? 1 : 0,
-    //     referrer: createEventDto.r || 'None',
-    //     referrer_url: createEventDto.r || 'None',
-    //     utm_source: utm.utmSource || 'None',
-    //     utm_medium: utm.utmMedium || 'None',
-    //     utm_campaign: utm.utmCampaign || 'None',
-    //   });
-    // }
 
     return this.dbService.event.create({
       data: {
@@ -192,13 +77,27 @@ export class EventsService {
           meta.ua,
         ),
         type: createEventDto.n,
+        ua: meta.ua,
         href: createEventDto.h,
         referrer: createEventDto.r,
+        referrerUrl: createEventDto.r,
         country: geo?.country,
         countryCode: geo?.countryCode,
+        city: geo?.city,
+        region: geo?.regionName,
+        latitude: geo?.lat.toString(),
+        longitude: geo?.lon.toString(),
         browser: parsed.browser.name,
+        browserVersion: parsed.browser.version,
+        engine: parsed.engine.name,
+        engineVersion: parsed.engine.version,
         os: parsed.os.name,
+        osVersion: parsed.os.version,
         device,
+        deviceVendor: parsed.device.vendor,
+        deviceModel: parsed.device.model,
+        cpuArchitecture: parsed.cpu.architecture,
+        bot: isbot(meta.ua),
         ...utm,
         domain: {
           connect: {
