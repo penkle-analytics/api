@@ -516,6 +516,10 @@ export class GatewayController {
     @Req() request: Request,
     @Body() createEventDto: CreateEventDto,
   ) {
+    console.log('POST /events', {
+      createEventDto,
+    });
+
     const user = await this.usersService.findMany({
       where: {
         domains: {
@@ -562,7 +566,7 @@ export class GatewayController {
     }
 
     if (eventCount >= maxViews) {
-      console.log('Monthly limit exceeded', {
+      console.error('Monthly limit exceeded', {
         domain: createEventDto.d,
         eventCount,
         maxViews,
@@ -579,10 +583,6 @@ export class GatewayController {
     }
 
     const ip = requestIp.getClientIp(request);
-
-    console.log('POST /events', {
-      createEventDto,
-    });
 
     try {
       const event = await this.eventsService.create(createEventDto, {
