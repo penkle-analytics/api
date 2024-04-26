@@ -1,4 +1,8 @@
 const env = {
+  env:
+    process.env.NODE_ENV ||
+    ('development' as 'development' | 'production' | 'test'),
+
   port: +process.env.PORT || 4000,
 
   jwtSecret: process.env.JWT_SECRET,
@@ -9,6 +13,8 @@ const env = {
   stripeSigningSecret: process.env.STRIPE_SIGNING_SECRET,
 
   stripePromo42: process.env.STRIPE_PROMO_42,
+
+  sentryDsn: process.env.SENTRY_DSN,
 };
 
 export type Config = typeof env;
