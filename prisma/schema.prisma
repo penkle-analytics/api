@@ -99,7 +99,7 @@ model Event {
   deviceVendor    String?
   deviceModel     String?
   cpuArchitecture String?
-  bot             Boolean?
+  bot             Boolean?  @default(false)
   utmSource       String?
   utmMedium       String?
   utmCampaign     String?
