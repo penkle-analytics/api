@@ -273,7 +273,7 @@ export class GatewayController {
       throw new NotFoundException('Domain not found');
     }
 
-    return this.eventsService.timeseries(domain.id, query);
+    return this.eventsService.timeseries(domain, query);
   }
 
   @Get('/domains/demo/:type')
@@ -298,15 +298,15 @@ export class GatewayController {
 
     switch (type) {
       case 'referrers':
-        return this.eventsService.getAllReferrersInPeriod(domain.id, query);
+        return this.eventsService.getAllReferrersInPeriod(domain, query);
       case 'pages':
-        return this.eventsService.getAllPagesInPeriod(domain.id, query);
+        return this.eventsService.getAllPagesInPeriod(domain, query);
       case 'countries':
-        return this.eventsService.getAllCountriesInPeriod(domain.id, query);
+        return this.eventsService.getAllCountriesInPeriod(domain, query);
       case 'os':
-        return this.eventsService.getAllOsInPeriod(domain.id, query);
+        return this.eventsService.getAllOsInPeriod(domain, query);
       case 'browsers':
-        return this.eventsService.getAllBrowsersInPeriod(domain.id, query);
+        return this.eventsService.getAllBrowsersInPeriod(domain, query);
       default:
         throw new BadRequestException('Invalid type');
     }
@@ -414,7 +414,7 @@ export class GatewayController {
       throw new NotFoundException('Domain not found');
     }
 
-    return this.eventsService.timeseries(domain.id, filters);
+    return this.eventsService.timeseries(domain, filters);
   }
 
   @UseGuards(AuthGuard)
@@ -445,15 +445,15 @@ export class GatewayController {
 
     switch (type) {
       case 'referrers':
-        return this.eventsService.getAllReferrersInPeriod(domain.id, query);
+        return this.eventsService.getAllReferrersInPeriod(domain, query);
       case 'pages':
-        return this.eventsService.getAllPagesInPeriod(domain.id, query);
+        return this.eventsService.getAllPagesInPeriod(domain, query);
       case 'countries':
-        return this.eventsService.getAllCountriesInPeriod(domain.id, query);
+        return this.eventsService.getAllCountriesInPeriod(domain, query);
       case 'os':
-        return this.eventsService.getAllOsInPeriod(domain.id, query);
+        return this.eventsService.getAllOsInPeriod(domain, query);
       case 'browsers':
-        return this.eventsService.getAllBrowsersInPeriod(domain.id, query);
+        return this.eventsService.getAllBrowsersInPeriod(domain, query);
       default:
         throw new BadRequestException('Invalid type');
     }

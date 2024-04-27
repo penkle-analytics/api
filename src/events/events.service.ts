@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { EventType, Prisma } from '@prisma/client';
+import { Domain, EventType, Prisma } from '@prisma/client';
 import { createHmac, randomBytes } from 'crypto';
 import * as dayjs from 'dayjs';
 import * as utc from 'dayjs/plugin/utc';
@@ -13,6 +13,7 @@ import * as uaParser from 'ua-parser-js';
 import { CreateEventDto } from './dto/create-event.dto';
 import { FilterEventsDto, Period } from './dto/filter-events.dto';
 import { getTimes } from './utils/get-times';
+import { buildFilters } from './utils/build-filters';
 
 dayjs.extend(utc);
 
@@ -112,14 +113,14 @@ export class EventsService {
     return this.dbService.event.count(data);
   }
 
-  async timeseries(domainId: string, filters: FilterEventsDto) {
+  async timeseries(domain: Domain, filters: FilterEventsDto) {
     const { to, from } = getTimes(filters);
 
     // console.time('timeseries:db');
 
     const eventsData = await this.findAll({
       where: {
-        domainId,
+        domainId: domain.id,
         sessionId: {
           not: null,
         },
@@ -127,18 +128,7 @@ export class EventsService {
           gte: from,
           lte: to,
         },
-        ...(filters?.referrer && {
-          referrer:
-            filters.referrer === 'null'
-              ? null
-              : {
-                  startsWith: filters.referrer,
-                },
-        }),
-        ...(filters?.page && { href: { contains: filters.page } }),
-        ...(filters?.country && { country: filters.country }),
-        ...(filters?.os && { os: filters.os }),
-        ...(filters?.browser && { browser: filters.browser }),
+        ...buildFilters(domain.name, filters),
         bot: false,
       },
       select: {
@@ -237,7 +227,7 @@ export class EventsService {
     return eventsInPeriod.reverse();
   }
 
-  async getAllReferrersInPeriod(domainId: string, filters: FilterEventsDto) {
+  async getAllReferrersInPeriod(domain: Domain, filters: FilterEventsDto) {
     const { to, from } = getTimes(filters);
 
     // console.time('getAllReferrersInPeriod');
@@ -252,23 +242,12 @@ export class EventsService {
       const eventsByReferrer = await this.dbService.event.groupBy({
         by: ['referrer'],
         where: {
-          domainId,
+          domainId: domain.id,
           createdAt: {
             gte: from,
             lte: to,
           },
-          ...(filters?.referrer && {
-            referrer:
-              filters.referrer === 'null'
-                ? null
-                : {
-                    startsWith: filters.referrer,
-                  },
-          }),
-          ...(filters?.page && { href: { contains: filters.page } }),
-          ...(filters?.country && { country: filters.country }),
-          ...(filters?.os && { os: filters.os }),
-          ...(filters?.browser && { browser: filters.browser }),
+          ...buildFilters(domain.name, filters),
           bot: false,
         },
         _count: {
@@ -282,7 +261,8 @@ export class EventsService {
       });
 
       for (const event of eventsByReferrer) {
-        if (event.referrer === null) {
+        // TODO: handle android-app referrers
+        if (event.referrer === null || !event.referrer.startsWith('https://')) {
           continue;
         }
 
@@ -292,18 +272,7 @@ export class EventsService {
           .slice(-2)
           .join('.');
 
-        if (event.referrer.includes('linkedin')) {
-          if (events.find((v) => v.label === 'LinkedIn')) {
-            events.find((v) => v.label === 'LinkedIn').value += value;
-            continue;
-          }
-
-          events.push({
-            label: 'LinkedIn',
-            value,
-            href: 'https://linkedin.com',
-          });
-        } else if (referrers[referrerDomain]) {
+        if (referrers[referrerDomain]) {
           if (events.find((v) => v.label === referrers[referrerDomain])) {
             events.find((v) => v.label === referrers[referrerDomain]).value +=
               value;
@@ -337,16 +306,15 @@ export class EventsService {
     if (!('referrer' in filters) || filters.referrer === 'Direct / None') {
       const eventCountWithoutReferrer = await this.dbService.event.count({
         where: {
-          domainId,
+          domainId: domain.id,
           createdAt: {
             gte: from,
             lte: to,
           },
-          referrer: null,
-          ...(filters?.page && { href: { contains: filters.page } }),
-          ...(filters?.country && { country: filters.country }),
-          ...(filters?.os && { os: filters.os }),
-          ...(filters?.browser && { browser: filters.browser }),
+          ...buildFilters(domain.name, {
+            ...filters,
+            referrer: 'null',
+          }),
           bot: false,
         },
       });
@@ -365,7 +333,7 @@ export class EventsService {
     return events.sort((a, b) => b.value - a.value);
   }
 
-  async getAllPagesInPeriod(domainId: string, filters: FilterEventsDto) {
+  async getAllPagesInPeriod(domain: Domain, filters: FilterEventsDto) {
     const { to, from } = getTimes(filters);
 
     // console.time('getAllPagesInPeriod');
@@ -373,23 +341,12 @@ export class EventsService {
     const eventsByPage = await this.dbService.event.groupBy({
       by: ['href'],
       where: {
-        domainId,
+        domainId: domain.id,
         createdAt: {
           gte: from,
           lte: to,
         },
-        ...(filters?.referrer && {
-          referrer:
-            filters.referrer === 'null'
-              ? null
-              : {
-                  startsWith: filters.referrer,
-                },
-        }),
-        ...(filters?.page && { href: { contains: filters.page } }),
-        ...(filters?.country && { country: filters.country }),
-        ...(filters?.os && { os: filters.os }),
-        ...(filters?.browser && { browser: filters.browser }),
+        ...buildFilters(domain.name, filters),
         bot: false,
       },
       _count: {
@@ -423,7 +380,7 @@ export class EventsService {
       .sort((a, b) => b.value - a.value);
   }
 
-  async getAllCountriesInPeriod(domainId: string, filters: FilterEventsDto) {
+  async getAllCountriesInPeriod(domain: Domain, filters: FilterEventsDto) {
     const { to, from } = getTimes(filters);
 
     // console.time('getAllCountriesInPeriod');
@@ -431,23 +388,12 @@ export class EventsService {
     const eventsByCountry = await this.dbService.event.groupBy({
       by: ['country'],
       where: {
-        domainId,
+        domainId: domain.id,
         createdAt: {
           gte: from,
           lte: to,
         },
-        ...(filters?.referrer && {
-          referrer:
-            filters.referrer === 'null'
-              ? null
-              : {
-                  startsWith: filters.referrer,
-                },
-        }),
-        ...(filters?.page && { href: { contains: filters.page } }),
-        ...(filters?.country && { country: filters.country }),
-        ...(filters?.os && { os: filters.os }),
-        ...(filters?.browser && { browser: filters.browser }),
+        ...buildFilters(domain.name, filters),
         bot: false,
       },
       _count: {
@@ -468,7 +414,7 @@ export class EventsService {
     }));
   }
 
-  async getAllOsInPeriod(domainId: string, filters: FilterEventsDto) {
+  async getAllOsInPeriod(domain: Domain, filters: FilterEventsDto) {
     const { to, from } = getTimes(filters);
 
     // console.time('getAllOsInPeriod');
@@ -476,23 +422,12 @@ export class EventsService {
     const eventsByOs = await this.dbService.event.groupBy({
       by: ['os'],
       where: {
-        domainId,
+        domainId: domain.id,
         createdAt: {
           gte: from,
           lte: to,
         },
-        ...(filters?.referrer && {
-          referrer:
-            filters.referrer === 'null'
-              ? null
-              : {
-                  startsWith: filters.referrer,
-                },
-        }),
-        ...(filters?.page && { href: { contains: filters.page } }),
-        ...(filters?.country && { country: filters.country }),
-        ...(filters?.os && { os: filters.os }),
-        ...(filters?.browser && { browser: filters.browser }),
+        ...buildFilters(domain.name, filters),
         bot: false,
       },
       _count: {
@@ -513,7 +448,7 @@ export class EventsService {
     }));
   }
 
-  async getAllBrowsersInPeriod(domainId: string, filters: FilterEventsDto) {
+  async getAllBrowsersInPeriod(domain: Domain, filters: FilterEventsDto) {
     const { to, from } = getTimes(filters);
 
     // console.time('getAllBrowsersInPeriod');
@@ -521,23 +456,12 @@ export class EventsService {
     const eventsByBrowser = await this.dbService.event.groupBy({
       by: ['browser'],
       where: {
-        domainId,
+        domainId: domain.id,
         createdAt: {
           gte: from,
           lte: to,
         },
-        ...(filters?.referrer && {
-          referrer:
-            filters.referrer === 'null'
-              ? null
-              : {
-                  startsWith: filters.referrer,
-                },
-        }),
-        ...(filters?.page && { href: { contains: filters.page } }),
-        ...(filters?.country && { country: filters.country }),
-        ...(filters?.os && { os: filters.os }),
-        ...(filters?.browser && { browser: filters.browser }),
+        ...buildFilters(domain.name, filters),
         bot: false,
       },
       _count: {
