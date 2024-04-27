@@ -16,11 +16,6 @@ export function buildFilters(domain: string, filters: FilterEventsDto) {
     const url = new URL('https://' + domain + filters.page);
 
     where.href = url.href;
-
-    console.log({
-      href: url.href,
-      page: filters.page,
-    });
   }
 
   if (filters.country) {
