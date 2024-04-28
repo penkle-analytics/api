@@ -338,8 +338,6 @@ export class EventsService {
 
     // console.time('getAllPagesInPeriod');
 
-    console.log(buildFilters(domain.name, filters));
-
     const eventsByPage = await this.dbService.event.groupBy({
       by: ['href'],
       where: {
