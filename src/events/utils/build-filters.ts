@@ -4,7 +4,7 @@ import { FilterEventsDto } from '../dto/filter-events.dto';
 export function buildFilters(domain: string, filters: FilterEventsDto) {
   const where: Prisma.EventWhereInput = {};
 
-  if (filters.referrer === 'null') {
+  if (filters.referrer === 'Direct / None') {
     where.referrer = null;
   } else if (filters.referrer) {
     where.referrer = {

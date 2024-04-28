@@ -313,7 +313,7 @@ export class EventsService {
           },
           ...buildFilters(domain.name, {
             ...filters,
-            referrer: 'null',
+            referrer: 'Direct / None',
           }),
           bot: false,
         },
@@ -337,6 +337,8 @@ export class EventsService {
     const { to, from } = getTimes(filters);
 
     // console.time('getAllPagesInPeriod');
+
+    console.log(buildFilters(domain.name, filters));
 
     const eventsByPage = await this.dbService.event.groupBy({
       by: ['href'],
