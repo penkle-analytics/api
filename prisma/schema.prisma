@@ -105,6 +105,8 @@ model Event {
   utmCampaign     String?
   utmTerm         String?
   utmContent      String?
+  source          String?
+  ref             String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

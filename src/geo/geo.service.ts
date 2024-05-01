@@ -33,6 +33,8 @@ export class GeoService {
     const json = await res.json();
 
     if (geoSchema.safeParse(json).success === false) {
+      console.error(`Invalid response from '${url}'\n${JSON.stringify(json)}`);
+
       throw new Error('An error occurred');
     }
 

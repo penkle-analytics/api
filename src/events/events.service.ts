@@ -55,6 +55,8 @@ export class EventsService {
       utmCampaign?: string | null;
       utmTerm?: string | null;
       utmContent?: string | null;
+      source?: string | null;
+      ref?: string | null;
     } = {};
 
     try {
@@ -66,6 +68,8 @@ export class EventsService {
       utm.utmCampaign = searchParams.get('utm_campaign');
       utm.utmTerm = searchParams.get('utm_term');
       utm.utmContent = searchParams.get('utm_content');
+      utm.source = searchParams.get('source');
+      utm.ref = searchParams.get('ref');
     } catch (error) {
       console.error('Failed to parse URL', error);
     }
