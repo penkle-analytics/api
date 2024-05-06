@@ -67,9 +67,11 @@ export class GatewayController {
   @UseGuards(AuthGuard)
   @Get('/auth/me')
   async me(@Req() req: Request) {
-    const { password, ...user } = await this.usersService.findUnique({
+    const user = await this.usersService.findUnique({
       where: { id: req['user'].sub },
     });
+
+    delete user.password;
 
     await this.usersService.update({
       where: { id: req['user'].sub },
@@ -303,10 +305,16 @@ export class GatewayController {
         return this.eventsService.getAllPagesInPeriod(domain, query);
       case 'countries':
         return this.eventsService.getAllCountriesInPeriod(domain, query);
+      case 'regions':
+        return this.eventsService.getAllRegionsInPeriod(domain, query);
+      case 'cities':
+        return this.eventsService.getAllCitiesInPeriod(domain, query);
       case 'os':
         return this.eventsService.getAllOsInPeriod(domain, query);
       case 'browsers':
         return this.eventsService.getAllBrowsersInPeriod(domain, query);
+      case 'devices':
+        return this.eventsService.getAllDevicesInPeriod(domain, query);
       default:
         throw new BadRequestException('Invalid type');
     }
@@ -450,10 +458,16 @@ export class GatewayController {
         return this.eventsService.getAllPagesInPeriod(domain, query);
       case 'countries':
         return this.eventsService.getAllCountriesInPeriod(domain, query);
+      case 'regions':
+        return this.eventsService.getAllRegionsInPeriod(domain, query);
+      case 'cities':
+        return this.eventsService.getAllCitiesInPeriod(domain, query);
       case 'os':
         return this.eventsService.getAllOsInPeriod(domain, query);
       case 'browsers':
         return this.eventsService.getAllBrowsersInPeriod(domain, query);
+      case 'devices':
+        return this.eventsService.getAllDevicesInPeriod(domain, query);
       default:
         throw new BadRequestException('Invalid type');
     }

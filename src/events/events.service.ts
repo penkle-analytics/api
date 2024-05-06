@@ -1,9 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { Domain, EventType, Prisma } from '@prisma/client';
-import { createHmac, randomBytes } from 'crypto';
+import { createHmac } from 'crypto';
 import * as dayjs from 'dayjs';
 import * as utc from 'dayjs/plugin/utc';
-import * as geoip from 'geoip-lite';
 import { isbot } from 'isbot';
 import { referrers } from 'src/data/referrers';
 import { DbService } from 'src/db/db.service';
@@ -179,7 +178,7 @@ export class EventsService {
         ),
       );
 
-      let sessionEventCount: Record<string, number> = {};
+      const sessionEventCount: Record<string, number> = {};
 
       for (let i = 0; i < eventsForInterval.length; i++) {
         const id = eventsForInterval[i].sessionId;
@@ -412,10 +411,84 @@ export class EventsService {
 
     // console.timeEnd('getAllCountriesInPeriod');
 
-    return eventsByCountry.map((event) => ({
-      label: event.country,
-      value: event._count.country,
-    }));
+    return eventsByCountry
+      .filter((event) => event.country !== null)
+      .map((event) => ({
+        label: event.country,
+        value: event._count.country,
+      }));
+  }
+
+  async getAllRegionsInPeriod(domain: Domain, filters: FilterEventsDto) {
+    const { to, from } = getTimes(filters);
+
+    // console.time('getAllRegionsInPeriod');
+
+    const eventsByRegion = await this.dbService.event.groupBy({
+      by: ['region'],
+      where: {
+        domainId: domain.id,
+        createdAt: {
+          gte: from,
+          lte: to,
+        },
+        ...buildFilters(domain.name, filters),
+        bot: false,
+      },
+      _count: {
+        region: true,
+      },
+      orderBy: {
+        _count: {
+          region: 'desc',
+        },
+      },
+    });
+
+    // console.timeEnd('getAllRegionsInPeriod');
+
+    return eventsByRegion
+      .filter((event) => event.region !== null)
+      .map((event) => ({
+        label: event.region,
+        value: event._count.region,
+      }));
+  }
+
+  async getAllCitiesInPeriod(domain: Domain, filters: FilterEventsDto) {
+    const { to, from } = getTimes(filters);
+
+    // console.time('getAllCitiesInPeriod');
+
+    const eventsByCity = await this.dbService.event.groupBy({
+      by: ['city'],
+      where: {
+        domainId: domain.id,
+        createdAt: {
+          gte: from,
+          lte: to,
+        },
+        ...buildFilters(domain.name, filters),
+        bot: false,
+      },
+      _count: {
+        city: true,
+      },
+      orderBy: {
+        _count: {
+          city: 'desc',
+        },
+      },
+    });
+
+    // console.timeEnd('getAllCitiesInPeriod');
+
+    return eventsByCity
+      .filter((event) => event.city !== null)
+      .map((event) => ({
+        label: event.city,
+        value: event._count.city,
+      }));
   }
 
   async getAllOsInPeriod(domain: Domain, filters: FilterEventsDto) {
@@ -446,10 +519,12 @@ export class EventsService {
 
     // console.timeEnd('getAllOsInPeriod');
 
-    return eventsByOs.map((event) => ({
-      label: event.os,
-      value: event._count.os,
-    }));
+    return eventsByOs
+      .filter((event) => event.os !== null)
+      .map((event) => ({
+        label: event.os,
+        value: event._count.os,
+      }));
   }
 
   async getAllBrowsersInPeriod(domain: Domain, filters: FilterEventsDto) {
@@ -480,26 +555,64 @@ export class EventsService {
 
     // console.timeEnd('getAllBrowsersInPeriod');
 
-    return eventsByBrowser.map((event) => ({
-      label: event.browser,
-      value: event._count.browser,
-    }));
+    return eventsByBrowser
+      .filter((event) => event.browser !== null)
+      .map((event) => ({
+        label: event.browser,
+        value: event._count.browser,
+      }));
   }
 
-  getLiveVisitors(domainId: string) {
-    return this.dbService.event
-      .findMany({
-        where: {
-          domain: {
-            id: domainId,
-          },
-          createdAt: {
-            gte: dayjs().subtract(1, 'minute').toDate(),
-          },
+  async getAllDevicesInPeriod(domain: Domain, filters: FilterEventsDto) {
+    const { to, from } = getTimes(filters);
+
+    // console.time('getAllDevicesInPeriod');
+
+    const eventsByDevice = await this.dbService.event.groupBy({
+      by: ['device'],
+      where: {
+        domainId: domain.id,
+        createdAt: {
+          gte: from,
+          lte: to,
         },
-        distinct: ['uniqueVisitorId'],
-      })
-      .then((events) => events.length);
+        ...buildFilters(domain.name, filters),
+        bot: false,
+      },
+      _count: {
+        device: true,
+      },
+      orderBy: {
+        _count: {
+          device: 'desc',
+        },
+      },
+    });
+
+    // console.timeEnd('getAllDevicesInPeriod');
+
+    return eventsByDevice
+      .filter((event) => event.device !== null)
+      .map((event) => ({
+        label: event.device,
+        value: event._count.device,
+      }));
+  }
+
+  async getLiveVisitors(domainId: string) {
+    const events = await this.dbService.event.findMany({
+      where: {
+        domain: {
+          id: domainId,
+        },
+        createdAt: {
+          gte: dayjs().subtract(1, 'minute').toDate(),
+        },
+      },
+      distinct: ['uniqueVisitorId'],
+    });
+
+    return events.length;
   }
 
   findAll(data: Prisma.EventFindManyArgs) {

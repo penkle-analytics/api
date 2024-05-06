@@ -19,11 +19,23 @@ export class FilterEventsDto {
 
   @IsString()
   @IsOptional()
+  region?: string;
+
+  @IsString()
+  @IsOptional()
+  city?: string;
+
+  @IsString()
+  @IsOptional()
   browser?: string;
 
   @IsString()
   @IsOptional()
   os?: string;
+
+  @IsString()
+  @IsOptional()
+  device?: string;
 
   @IsEnum(period)
   @IsOptional()

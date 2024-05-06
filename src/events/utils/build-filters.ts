@@ -18,7 +18,11 @@ export function buildFilters(domain: string, filters: FilterEventsDto) {
     where.href = url.href;
   }
 
-  if (filters.country) {
+  if (filters.city) {
+    where.city = filters.city;
+  } else if (filters.region) {
+    where.region = filters.region;
+  } else if (filters.country) {
     where.country = filters.country;
   }
 
@@ -28,6 +32,10 @@ export function buildFilters(domain: string, filters: FilterEventsDto) {
 
   if (filters.os) {
     where.os = filters.os;
+  }
+
+  if (filters.device) {
+    where.device = filters.device;
   }
 
   return where;
