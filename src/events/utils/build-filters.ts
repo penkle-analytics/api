@@ -20,9 +20,13 @@ export function buildFilters(domain: string, filters: FilterEventsDto) {
 
   if (filters.city) {
     where.city = filters.city;
-  } else if (filters.region) {
+  }
+
+  if (filters.region) {
     where.region = filters.region;
-  } else if (filters.country) {
+  }
+
+  if (filters.country) {
     where.country = filters.country;
   }
 

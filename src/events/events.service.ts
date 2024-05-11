@@ -389,7 +389,7 @@ export class EventsService {
     // console.time('getAllCountriesInPeriod');
 
     const eventsByCountry = await this.dbService.event.groupBy({
-      by: ['country'],
+      by: ['country', 'countryCode'],
       where: {
         domainId: domain.id,
         createdAt: {
@@ -416,6 +416,9 @@ export class EventsService {
       .map((event) => ({
         label: event.country,
         value: event._count.country,
+        extra: {
+          countryCode: event.countryCode,
+        },
       }));
   }
 
@@ -425,7 +428,7 @@ export class EventsService {
     // console.time('getAllRegionsInPeriod');
 
     const eventsByRegion = await this.dbService.event.groupBy({
-      by: ['region'],
+      by: ['region', 'countryCode', 'country'],
       where: {
         domainId: domain.id,
         createdAt: {
@@ -452,6 +455,10 @@ export class EventsService {
       .map((event) => ({
         label: event.region,
         value: event._count.region,
+        extra: {
+          countryCode: event.countryCode,
+          country: event.country,
+        },
       }));
   }
 
@@ -461,7 +468,7 @@ export class EventsService {
     // console.time('getAllCitiesInPeriod');
 
     const eventsByCity = await this.dbService.event.groupBy({
-      by: ['city'],
+      by: ['city', 'countryCode', 'country', 'region'],
       where: {
         domainId: domain.id,
         createdAt: {
@@ -488,6 +495,11 @@ export class EventsService {
       .map((event) => ({
         label: event.city,
         value: event._count.city,
+        extra: {
+          countryCode: event.countryCode,
+          country: event.country,
+          region: event.region,
+        },
       }));
   }
 
