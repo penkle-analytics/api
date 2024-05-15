@@ -356,7 +356,7 @@ export class GatewayController {
     let maxViews = FREE_PLAN_VIEW_LIMIT;
 
     if (subscription) {
-      maxViews = plans[subscription.subscriptionPlan].maxViews;
+      maxViews = plans[subscription.plan].maxViews;
     }
 
     return {
@@ -534,10 +534,11 @@ export class GatewayController {
       createEventDto,
     });
 
-    const user = await this.usersService.findMany({
+    const user = await this.usersService.findFirst({
       where: {
         domains: {
           some: {
+            role: 'OWNER',
             domain: {
               name: createEventDto.d,
             },
@@ -546,25 +547,11 @@ export class GatewayController {
       },
     });
 
-    if (!user || user.length === 0) {
+    if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    const eventCount = await this.eventsService.count({
-      where: {
-        domain: {
-          users: {
-            some: {
-              userId: user[0].id,
-            },
-          },
-        },
-        createdAt: {
-          gte: dayjs().startOf('month').toDate(),
-          lte: dayjs().endOf('month').toDate(),
-        },
-      },
-    });
+    const eventCount = await this.eventsService.getAllEventsForUser(user.id);
 
     const subscription =
       await this.subscriptionsService.findSubscriptionByDomain(
@@ -574,7 +561,7 @@ export class GatewayController {
     let maxViews = FREE_PLAN_VIEW_LIMIT;
 
     if (subscription) {
-      maxViews = plans[subscription.subscriptionPlan].maxViews;
+      maxViews = plans[subscription.plan].maxViews;
     } else if (createEventDto.d.includes('ccelerli')) {
       maxViews = 50_000;
     }

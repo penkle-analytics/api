@@ -62,11 +62,11 @@ export class WebhooksService {
           subscriptionId: subscription.id,
           customerId: customer.id,
           productId: product.id,
-          subscriptionStatus:
+          status:
             subscription.status === 'trialing'
               ? SubscriptionStatus.TRIALING
               : SubscriptionStatus.ACTIVE,
-          subscriptionPlan,
+          plan: subscriptionPlan,
           periodEndsAt: dayjs.unix(subscription.current_period_end).toDate(),
           user: {
             connect: {
@@ -120,7 +120,7 @@ export class WebhooksService {
       await this.dbService.subscription.update({
         where: { id: subscriptionRecord.id },
         data: {
-          subscriptionStatus: SubscriptionStatus.PAUSED,
+          status: SubscriptionStatus.PAUSED,
         },
       });
     } catch (error) {
@@ -144,7 +144,7 @@ export class WebhooksService {
       await this.dbService.subscription.update({
         where: { id: subscriptionRecord.id },
         data: {
-          subscriptionStatus: SubscriptionStatus.ACTIVE,
+          status: SubscriptionStatus.ACTIVE,
         },
       });
     } catch (error) {
@@ -183,7 +183,7 @@ export class WebhooksService {
             .unix(subscription.cancel_at ?? subscription.current_period_end)
             .toDate(),
           cancelAtPeriodEnd: subscription.cancel_at_period_end,
-          subscriptionPlan,
+          plan: subscriptionPlan,
         },
       });
     } catch (error) {

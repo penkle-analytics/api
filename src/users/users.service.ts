@@ -20,6 +20,10 @@ export class UsersService {
     return this.dbService.user.findUnique(args);
   }
 
+  findFirst(args: Prisma.UserFindFirstArgs) {
+    return this.dbService.user.findFirst(args);
+  }
+
   findMany(args: Prisma.UserFindManyArgs) {
     return this.dbService.user.findMany(args);
   }

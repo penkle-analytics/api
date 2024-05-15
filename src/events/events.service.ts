@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Domain, EventType, Prisma } from '@prisma/client';
+import { Domain, DomainRole, EventType, Prisma } from '@prisma/client';
 import { createHmac } from 'crypto';
 import * as dayjs from 'dayjs';
 import * as utc from 'dayjs/plugin/utc';
@@ -627,12 +627,41 @@ export class EventsService {
     return events.length;
   }
 
+  async getAllEventsForUser(userId: string) {
+    const userDomain = await this.dbService.userDomain.findMany({
+      where: {
+        userId,
+        role: DomainRole.ADMIN,
+      },
+    });
+
+    let count = 0;
+
+    for (const domain of userDomain) {
+      count += await this.dbService.event.count({
+        where: {
+          domainId: domain.domainId,
+          createdAt: {
+            gte: dayjs().startOf('month').toDate(),
+            lte: dayjs().endOf('month').toDate(),
+          },
+        },
+      });
+    }
+
+    return count;
+  }
+
   findAll(data: Prisma.EventFindManyArgs) {
     return this.dbService.event.findMany(data);
   }
 
   findUnique(data: Prisma.EventFindUniqueArgs) {
     return this.dbService.event.findUnique(data);
+  }
+
+  findFirst(data: Prisma.EventFindFirstArgs) {
+    return this.dbService.event.findFirst(data);
   }
 
   update(data: Prisma.EventUpdateArgs) {
