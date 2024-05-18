@@ -631,7 +631,7 @@ export class EventsService {
     const userDomain = await this.dbService.userDomain.findMany({
       where: {
         userId,
-        role: DomainRole.ADMIN,
+        role: DomainRole.OWNER,
       },
     });
 
@@ -650,6 +650,63 @@ export class EventsService {
     }
 
     return count;
+  }
+
+  async getUsageForUser(userId: string) {
+    const userDomain = await this.dbService.userDomain.findMany({
+      where: {
+        userId,
+        role: DomainRole.OWNER,
+      },
+      select: {
+        domainId: true,
+        domain: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+
+    let usage = 0;
+    const usageByDomain: {
+      domain: string;
+      usage: number;
+      offset?: number;
+    }[] = [];
+
+    for (const domain of userDomain) {
+      const events = await this.dbService.event.count({
+        where: {
+          domainId: domain.domainId,
+          createdAt: {
+            gte: dayjs.utc().startOf('month').toDate(),
+            lte: dayjs.utc().endOf('month').toDate(),
+          },
+        },
+      });
+
+      usageByDomain.push({
+        domain: domain.domain.name,
+        usage: events,
+      });
+
+      usage += events;
+    }
+
+    usageByDomain.sort((a, b) => b.usage - a.usage);
+
+    for (let i = 0; i < usageByDomain.length; i++) {
+      usageByDomain[i].offset = usageByDomain.reduce(
+        (acc, v, index) => (index < i ? acc + v.usage : acc),
+        0,
+      );
+    }
+
+    return {
+      usage,
+      usageByDomain,
+    };
   }
 
   findAll(data: Prisma.EventFindManyArgs) {

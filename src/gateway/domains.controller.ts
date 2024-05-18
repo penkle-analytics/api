@@ -5,44 +5,23 @@ import {
   Delete,
   ForbiddenException,
   Get,
-  HttpCode,
-  HttpStatus,
   InternalServerErrorException,
   NotFoundException,
   Param,
-  Patch,
   Post,
   Query,
   Req,
-  Res,
-  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
-import { AuthService } from 'src/auth/auth.service';
-import { LoginDto } from 'src/auth/dto/login.dto';
-import { CreateWaitlistUserDto } from 'src/users/dto/create-waitlist-user.dto';
-import { UsersService } from 'src/users/users.service';
-import type { Response, Request } from 'express';
+import type { Request } from 'express';
 import { AuthGuard } from 'src/auth/auth.guard';
-import { ConfigService } from '@nestjs/config';
 import { CreateDomainDto } from 'src/domains/dto/create-domain.dto';
 import { DomainsService } from 'src/domains/domains.service';
-import { CreateEventDto } from 'src/events/dto/create-event.dto';
 import { EventsService } from 'src/events/events.service';
-import * as requestIp from 'request-ip';
-import { isbot } from 'isbot';
 import * as dayjs from 'dayjs';
-import { EventType } from '@prisma/client';
 import { FilterEventsDto } from 'src/events/dto/filter-events.dto';
-import { ResetDto } from 'src/auth/dto/reset.dto';
-import { SignupDto } from 'src/auth/dto/signup.dto';
-import { CreateCheckoutSessionDto } from 'src/subscriptions/dto/create-checkout-session';
 import { SubscriptionsService } from 'src/subscriptions/subscriptions.service';
-import { CreateBillingPortalSessionDto } from 'src/subscriptions/dto/create-billing-portal-session.dto';
-import { ChangeSubscriptionPlanDto } from 'src/subscriptions/dto/change-subscription-plan.dto';
 import { FREE_PLAN_VIEW_LIMIT, plans } from 'src/config/stripe';
-import { SessionsService } from 'src/sessions/sessions.service';
-import { hasSubscribers } from 'diagnostics_channel';
 
 declare global {
   namespace Express {
@@ -53,143 +32,27 @@ declare global {
 }
 
 @Controller('/')
-export class GatewayController {
+export class GatewayDomainsController {
   constructor(
-    private readonly authService: AuthService,
-    private readonly usersService: UsersService,
     private readonly eventsService: EventsService,
     private readonly domainsService: DomainsService,
-    private readonly sessionsService: SessionsService,
     private readonly subscriptionsService: SubscriptionsService,
-    private readonly configService: ConfigService,
   ) {}
 
   @UseGuards(AuthGuard)
-  @Get('/auth/me')
-  async me(@Req() req: Request) {
-    const user = await this.usersService.findUnique({
-      where: { id: req['user'].sub },
-    });
+  @Get('/usage')
+  async usage(@Req() req: Request) {
+    const subscription =
+      await this.subscriptionsService.findSubscriptionByUserId(req['user'].sub);
 
-    delete user.password;
-
-    await this.usersService.update({
-      where: { id: req['user'].sub },
-      data: {
-        lastSeenAt: dayjs().toDate(),
-      },
-    });
-
-    return user;
-  }
-
-  @HttpCode(HttpStatus.OK)
-  @Post('/auth/login')
-  async login(
-    @Body() loginDto: LoginDto,
-    @Res({ passthrough: true }) response: Response,
-  ) {
-    const authEntity = await this.authService.login(loginDto);
-
-    if (!authEntity) {
-      return null;
-    }
-
-    const isProd = this.configService.get<string>('NODE_ENV') === 'production';
-
-    response.cookie('penkle-token', authEntity.accessToken, {
-      httpOnly: true,
-      secure: isProd,
-      domain: isProd ? '.penkle.com' : undefined,
-      sameSite: isProd ? 'none' : 'lax',
-      path: '/',
-      expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7), // 7 days
-    });
-
-    return { accessToken: authEntity.accessToken };
-  }
-
-  @HttpCode(HttpStatus.OK)
-  @Post('/auth/signup')
-  async signup(
-    @Body() signupDto: SignupDto,
-    @Res({ passthrough: true }) response: Response,
-  ) {
-    const authEntity = await this.authService.signup(signupDto);
-
-    if (!authEntity) {
-      return null;
-    }
-
-    const isProd = this.configService.get<string>('NODE_ENV') === 'production';
-
-    response.cookie('penkle-token', authEntity.accessToken, {
-      httpOnly: true,
-      secure: isProd,
-      domain: isProd ? '.penkle.com' : undefined,
-      sameSite: isProd ? 'none' : 'lax',
-      path: '/',
-      expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7), // 7 days
-    });
-
-    return { accessToken: authEntity.accessToken };
-  }
-
-  @HttpCode(HttpStatus.OK)
-  @Post('/auth/forgot')
-  async forgot(@Body() body: { email: string }) {
-    await this.authService.forgot(body.email);
+    const usage = await this.eventsService.getUsageForUser(req['user'].sub);
 
     return {
-      status: 'ok',
+      limit: subscription
+        ? plans[subscription.plan].maxViews
+        : FREE_PLAN_VIEW_LIMIT,
+      ...usage,
     };
-  }
-
-  @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard)
-  @Post('/auth/reset')
-  async reset(
-    @Res({ passthrough: true }) response: Response,
-    @Req() req: Request,
-    @Body() body: ResetDto,
-  ) {
-    const authEntity = await this.authService.reset(req.user.sub, body);
-
-    if (!authEntity) {
-      return null;
-    }
-
-    const isProd = this.configService.get<string>('NODE_ENV') === 'production';
-
-    response.cookie('penkle-token', authEntity.accessToken, {
-      httpOnly: true,
-      secure: isProd,
-      domain: isProd ? '.penkle.com' : undefined,
-      sameSite: isProd ? 'none' : 'lax',
-      path: '/',
-      expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7), // 7 days
-    });
-
-    return { accessToken: authEntity.accessToken };
-  }
-
-  @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard)
-  @Post('/auth/logout')
-  async logout(@Res({ passthrough: true }) response: Response) {
-    response.clearCookie('penkle-token');
-
-    return {
-      status: 'ok',
-    };
-  }
-
-  @HttpCode(HttpStatus.OK)
-  @Post('/auth/waitlist')
-  async waitlist(@Body() createWaitlistUserDto: CreateWaitlistUserDto) {
-    console.log('POST /auth/waitlist', { createWaitlistUserDto });
-
-    return this.usersService.createWaitlistUser(createWaitlistUserDto);
   }
 
   @UseGuards(AuthGuard)
@@ -525,80 +388,6 @@ export class GatewayController {
     }
   }
 
-  @Post('/events')
-  async create(
-    @Req() request: Request,
-    @Body() createEventDto: CreateEventDto,
-  ) {
-    console.log('POST /events', {
-      createEventDto,
-    });
-
-    const user = await this.usersService.findFirst({
-      where: {
-        domains: {
-          some: {
-            role: 'OWNER',
-            domain: {
-              name: createEventDto.d,
-            },
-          },
-        },
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    const eventCount = await this.eventsService.getAllEventsForUser(user.id);
-
-    const subscription =
-      await this.subscriptionsService.findSubscriptionByDomain(
-        createEventDto.d,
-      );
-
-    let maxViews = FREE_PLAN_VIEW_LIMIT;
-
-    if (subscription) {
-      maxViews = plans[subscription.plan].maxViews;
-    } else if (createEventDto.d.includes('ccelerli')) {
-      maxViews = 50_000;
-    }
-
-    if (eventCount >= maxViews) {
-      console.error('Monthly limit exceeded', {
-        domain: createEventDto.d,
-        eventCount,
-        maxViews,
-      });
-
-      throw new BadRequestException('Monthly limit exceeded');
-    }
-
-    const ua = request.headers['user-agent'];
-    const host = new URL(createEventDto.h).host;
-
-    if (host !== createEventDto.d.toLowerCase()) {
-      throw new BadRequestException('Host and domain do not match');
-    }
-
-    const ip = requestIp.getClientIp(request);
-
-    try {
-      const event = await this.eventsService.create(createEventDto, {
-        ip,
-        ua,
-      });
-
-      await this.sessionsService.handleSession(event);
-    } catch (error) {
-      console.error('Error creating event', error);
-    }
-
-    return 'ok';
-  }
-
   @UseGuards(AuthGuard)
   @Get('/check/:domain')
   async checkDomain(@Req() req: Request, @Param('domain') domain: string) {
@@ -622,93 +411,5 @@ export class GatewayController {
       domain,
       installed: false,
     };
-  }
-
-  @Get('/subscriptions/plans')
-  async getSubscriptions() {
-    try {
-      return this.subscriptionsService.getSubscriptions({
-        includeFree: true,
-      });
-    } catch (error) {
-      console.error('Error getting subscriptions', error);
-
-      return [];
-    }
-  }
-
-  @UseGuards(AuthGuard)
-  @Post('/subscriptions/checkout-session')
-  async createCheckoutSession(
-    @Req() req: Request,
-    @Body() createCheckoutSession: CreateCheckoutSessionDto,
-  ) {
-    console.log('POST /subscriptions/checkout-session', {
-      createCheckoutSession,
-    });
-
-    return this.subscriptionsService.createCheckoutSession(
-      req['user'].sub,
-      createCheckoutSession,
-    );
-  }
-
-  @UseGuards(AuthGuard)
-  @Post('/subscriptions/billing-portal-session')
-  async createBillingPortalSession(
-    @Req() req: Request,
-    @Body() createBillingPortalSessionDto: CreateBillingPortalSessionDto,
-  ) {
-    console.log('POST /subscriptions/billing-portal-session');
-
-    return this.subscriptionsService.createBillingPortalSession(
-      req['user'].sub,
-      createBillingPortalSessionDto,
-    );
-  }
-
-  @UseGuards(AuthGuard)
-  @Get('/subscription')
-  async getSubscription(@Req() req: Request) {
-    const subscription =
-      await this.subscriptionsService.findSubscriptionByUserId(req['user'].sub);
-
-    if (!subscription) {
-      throw new NotFoundException('Subscription not found');
-    }
-
-    return subscription;
-  }
-
-  @UseGuards(AuthGuard)
-  @Post('/subscriptions/change-plan')
-  async changeSubscriptionPlan(
-    @Req() req: Request,
-    @Body() changeSubscriptionPlanDto: ChangeSubscriptionPlanDto,
-  ) {
-    console.log('POST /subscriptions/change-plan', {
-      changeSubscriptionPlanDto,
-    });
-
-    return this.subscriptionsService.changeSubscriptionPlan(
-      req['user'].sub,
-      changeSubscriptionPlanDto,
-    );
-  }
-
-  @UseGuards(AuthGuard)
-  @Post('/subscriptions/unsubscribe')
-  async unsubscribe(@Req() req: Request) {
-    console.log('POST /subscriptions/unsubscribe');
-
-    return this.subscriptionsService.unsubscribe(req['user'].sub);
-  }
-
-  @UseGuards(AuthGuard)
-  @Post('/subscriptions/resubscribe')
-  async resubscribe(@Req() req: Request) {
-    console.log('POST /subscriptions/resubscribe');
-
-    return this.subscriptionsService.resubscribe(req['user'].sub);
   }
 }
