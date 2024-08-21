@@ -58,20 +58,28 @@ export class EventsService {
       ref?: string | null;
     } = {};
 
-    try {
-      const url = new URL(createEventDto.h);
-      const searchParams = new URLSearchParams(url.search);
+    let url: URL;
 
-      utm.utmSource = searchParams.get('utm_source');
-      utm.utmMedium = searchParams.get('utm_medium');
-      utm.utmCampaign = searchParams.get('utm_campaign');
-      utm.utmTerm = searchParams.get('utm_term');
-      utm.utmContent = searchParams.get('utm_content');
-      utm.source = searchParams.get('source');
-      utm.ref = searchParams.get('ref');
+    try {
+      if (createEventDto.h.endsWith('/')) {
+        url = new URL(createEventDto.h.slice(0, -1));
+      } else {
+        url = new URL(createEventDto.h);
+      }
     } catch (error) {
       console.error('Failed to parse URL', error);
+      return;
     }
+
+    const searchParams = new URLSearchParams(url.search);
+
+    utm.utmSource = searchParams.get('utm_source');
+    utm.utmMedium = searchParams.get('utm_medium');
+    utm.utmCampaign = searchParams.get('utm_campaign');
+    utm.utmTerm = searchParams.get('utm_term');
+    utm.utmContent = searchParams.get('utm_content');
+    utm.source = searchParams.get('source');
+    utm.ref = searchParams.get('ref');
 
     return this.dbService.event.create({
       data: {
@@ -82,7 +90,7 @@ export class EventsService {
         ),
         type: createEventDto.n,
         ua: meta.ua,
-        href: createEventDto.h,
+        href: url.href,
         referrer: createEventDto.r,
         referrerUrl: createEventDto.r,
         country: geo?.country,
