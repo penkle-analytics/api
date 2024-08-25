@@ -635,6 +635,32 @@ export class EventsService {
     return events.length;
   }
 
+  async getRecentEventsByVisitor(domainId: string) {
+    return this.dbService.event.findMany({
+      distinct: ['uniqueVisitorId'],
+      where: {
+        domain: {
+          id: domainId,
+        },
+        createdAt: {
+          gte: dayjs().subtract(1, 'minute').toDate(),
+        },
+      },
+      select: {
+        uniqueVisitorId: true,
+        country: true,
+        countryCode: true,
+        browser: true,
+        os: true,
+        href: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
   async getAllEventsForUser(userId: string) {
     const userDomain = await this.dbService.userDomain.findMany({
       where: {

@@ -114,10 +114,13 @@ export class GatewayDomainsController {
       throw new NotFoundException('Domain not found');
     }
 
-    const liveVisitors = await this.eventsService.getLiveVisitors(domain.id);
+    const recentEvents = await this.eventsService.getRecentEventsByVisitor(
+      domain.id,
+    );
 
     return {
-      liveVisitors,
+      count: recentEvents.length,
+      visitors: recentEvents,
     };
   }
 
@@ -241,12 +244,13 @@ export class GatewayDomainsController {
       throw new NotFoundException('Domain not found');
     }
 
-    const liveVisitors = await this.eventsService.getLiveVisitors(
+    const recentEvents = await this.eventsService.getRecentEventsByVisitor(
       domain.domain.id,
     );
 
     return {
-      liveVisitors,
+      count: recentEvents.length,
+      visitors: recentEvents,
     };
   }
 
