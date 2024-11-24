@@ -19,6 +19,8 @@ import { ConfigService } from '@nestjs/config';
 import * as dayjs from 'dayjs';
 import { ResetDto } from 'src/auth/dto/reset.dto';
 import { SignupDto } from 'src/auth/dto/signup.dto';
+import { DomainsService } from 'src/domains/domains.service';
+import { DbService } from 'src/db/db.service';
 
 declare global {
   namespace Express {
@@ -33,6 +35,7 @@ export class GatewayAuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly usersService: UsersService,
+    private readonly dbService: DbService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -52,7 +55,14 @@ export class GatewayAuthController {
       },
     });
 
-    return user;
+    const domains = await this.dbService.userDomain.findMany({
+      where: { userId: user.id, role: 'ADMIN' },
+      include: {
+        domain: true,
+      },
+    });
+
+    return { ...user, domains: domains.map((domain) => domain.domain) };
   }
 
   @HttpCode(HttpStatus.OK)
