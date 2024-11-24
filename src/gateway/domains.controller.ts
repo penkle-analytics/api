@@ -204,30 +204,30 @@ export class GatewayDomainsController {
       },
     });
 
-    const eventsInMonth = await this.eventsService.count({
-      where: {
-        domain: {
-          id: domain.id,
-        },
-        createdAt: {
-          gte: dayjs().startOf('month').toDate(),
-          lte: dayjs().endOf('month').toDate(),
-        },
-      },
-    });
+    // const eventsInMonth = await this.eventsService.count({
+    //   where: {
+    //     domain: {
+    //       id: domain.id,
+    //     },
+    //     createdAt: {
+    //       gte: dayjs().startOf('month').toDate(),
+    //       lte: dayjs().endOf('month').toDate(),
+    //     },
+    //   },
+    // });
 
-    const subscription =
-      await this.subscriptionsService.findSubscriptionByDomain(domain.name);
+    // const subscription =
+    //   await this.subscriptionsService.findSubscriptionByDomain(domain.name);
 
-    let maxViews = FREE_PLAN_VIEW_LIMIT;
+    // let maxViews = FREE_PLAN_VIEW_LIMIT;
 
-    if (subscription) {
-      maxViews = plans[subscription.plan].maxViews;
-    }
+    // if (subscription) {
+    //   maxViews = plans[subscription.plan].maxViews;
+    // }
 
     return {
       ...domain,
-      hasExceededLimit: eventsInMonth >= maxViews,
+      hasExceededLimit: false,
     };
   }
 
