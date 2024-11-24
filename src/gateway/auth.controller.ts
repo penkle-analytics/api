@@ -56,7 +56,7 @@ export class GatewayAuthController {
     });
 
     const domains = await this.dbService.userDomain.findMany({
-      where: { userId: user.id, role: 'ADMIN' },
+      where: { userId: user.id, role: 'OWNER' },
       include: {
         domain: true,
       },
