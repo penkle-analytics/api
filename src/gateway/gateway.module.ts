@@ -9,9 +9,11 @@ import { GatewayDomainsController } from './domains.controller';
 import { GatewaySubscriptionsController } from './subscriptions.controller';
 import { GatewayEventsController } from './events.controller';
 import { GatewayAuthController } from './auth.controller';
+import { DbModule } from 'src/db/db.module';
 
 @Module({
   imports: [
+    DbModule,
     UsersModule,
     AuthModule,
     DomainsModule,
